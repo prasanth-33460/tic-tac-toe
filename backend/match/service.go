@@ -5,18 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
-
-// GameService handles the core game logic
-type GameService struct {
-	logger     runtime.Logger
-	db         *sql.DB
-	nk         runtime.NakamaModule
-	dispatcher runtime.MatchDispatcher
-}
 
 // NewGameService creates a new game service instance
 func NewGameService(logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher) *GameService {
@@ -26,6 +19,97 @@ func NewGameService(logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, 
 		nk:         nk,
 		dispatcher: dispatcher,
 	}
+}
+
+// ValidateJoinRequest validates if a player can join a match based on various criteria
+func (s *GameService) ValidateJoinRequest(ctx context.Context, state *MatchState, userID string, metadata map[string]string) ValidationResult {
+	// Check if banned
+	if banned, err := s.IsPlayerBanned(ctx, userID); err == nil && banned {
+		return ValidationResult{Valid: false, Message: "player is banned"}
+	}
+
+	// Check skill level compatibility
+	playerSkill, matchSkill := s.getSkillLevels(metadata, state.Metadata)
+	if result := s.validateSkillCompatibility(playerSkill, matchSkill); !result.Valid {
+		return result
+	}
+
+	// Check game mode compatibility
+	if result := s.validateGameMode(metadata["mode"], state.Mode); !result.Valid {
+		return result
+	}
+
+	return ValidationResult{Valid: true}
+}
+
+// IsPlayerBanned checks if a player is banned from matchmaking
+func (s *GameService) IsPlayerBanned(ctx context.Context, userID string) (bool, error) {
+	var banned bool
+	query := "SELECT is_banned FROM player_status WHERE user_id = $1"
+	err := s.db.QueryRowContext(ctx, query, userID).Scan(&banned)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	return banned, err
+}
+
+// getSkillLevels extracts skill levels from metadata
+func (s *GameService) getSkillLevels(playerMeta map[string]string, matchMeta map[string]interface{}) (playerSkill, matchSkill int) {
+	if skillStr, ok := playerMeta["skill_level"]; ok {
+		if skill, err := strconv.Atoi(skillStr); err == nil {
+			playerSkill = skill
+		}
+	}
+
+	if skill, ok := matchMeta["skill_level"].(float64); ok {
+		matchSkill = int(skill)
+	}
+
+	return
+}
+
+// validateSkillCompatibility checks if skill levels are compatible
+func (s *GameService) validateSkillCompatibility(playerSkill, matchSkill int) ValidationResult {
+	if playerSkill == 0 || matchSkill == 0 {
+		return ValidationResult{Valid: true}
+	}
+
+	maxSkillDiff := 20 // Configurable threshold
+	diff := abs(playerSkill - matchSkill)
+	if diff > maxSkillDiff {
+		return ValidationResult{
+			Valid:   false,
+			Message: fmt.Sprintf("skill difference too high: %d", diff),
+		}
+	}
+
+	return ValidationResult{Valid: true}
+}
+
+// validateGameMode checks if game modes are compatible
+func (s *GameService) validateGameMode(playerMode, gameMode string) ValidationResult {
+	if playerMode == "" {
+		return ValidationResult{Valid: true}
+	}
+
+	if playerMode != gameMode {
+		return ValidationResult{
+			Valid:   false,
+			Message: "game mode mismatch",
+		}
+	}
+
+	return ValidationResult{Valid: true}
+}
+
+// abs returns the absolute value of an integer
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // ProcessMove handles a player's move

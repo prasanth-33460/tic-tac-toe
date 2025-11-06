@@ -4,35 +4,6 @@ import (
 	"time"
 )
 
-// MatchState represents the complete state of a tic-tac-toe match
-type MatchState struct {
-	Board           [BoardSize]string      `json:"board"`
-	Players         map[string]*PlayerData `json:"players"`
-	CurrentTurnID   string                 `json:"current_turn_id"`
-	Winner          string                 `json:"winner"`
-	GameOver        bool                   `json:"game_over"`
-	IsDraw          bool                   `json:"is_draw"`
-	Mode            string                 `json:"mode"`
-	TurnStartTime   int64                  `json:"turn_start_time"`
-	TurnTimeoutSecs int                    `json:"turn_timeout_secs"`
-	MoveCount       int                    `json:"move_count"`
-}
-
-// PlayerData contains information about each player in the match
-type PlayerData struct {
-	UserID      string `json:"user_id"`
-	Username    string `json:"username"`
-	Symbol      string `json:"symbol"`
-	IsConnected bool   `json:"is_connected"`
-	Wins        int    `json:"wins"`
-	Losses      int    `json:"losses"`
-}
-
-// MoveMessage represents a player's move attempt
-type MoveMessage struct {
-	Position int `json:"position"`
-}
-
 // NewGameState creates a fresh game state with the specified mode
 func NewGameState(mode string) *MatchState {
 	state := &MatchState{
@@ -41,6 +12,8 @@ func NewGameState(mode string) *MatchState {
 		Mode:            mode,
 		TurnTimeoutSecs: 0,
 		MoveCount:       0,
+		Metadata:        make(map[string]interface{}),
+		Preferences:     make(map[string]string),
 	}
 
 	// Initialize empty board

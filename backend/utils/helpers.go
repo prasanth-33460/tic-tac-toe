@@ -22,14 +22,6 @@ func JsonUnmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-// ValidateString checks if a string is within the allowed length
-func ValidateString(s string, minLen, maxLen int) error {
-	if len(s) < minLen || len(s) > maxLen {
-		return fmt.Errorf("string length must be between %d and %d characters", minLen, maxLen)
-	}
-	return nil
-}
-
 // ContainsString checks if a string is present in a slice of strings
 func ContainsString(slice []string, str string) bool {
 	for _, s := range slice {
@@ -42,11 +34,19 @@ func ContainsString(slice []string, str string) bool {
 
 // FilterStrings returns a new slice containing only strings that pass the filter function
 func FilterStrings(slice []string, filter func(string) bool) []string {
-	result := make([]string, 0, len(slice))
+	filtered := make([]string, 0, len(slice))
 	for _, s := range slice {
 		if filter(s) {
-			result = append(result, s)
+			filtered = append(filtered, s)
 		}
 	}
-	return result
+	return filtered
+}
+
+// ValidateString checks if a string is within the allowed length
+func ValidateString(s string, minLen, maxLen int) error {
+	if len(s) < minLen || len(s) > maxLen {
+		return fmt.Errorf("string length must be between %d and %d characters", minLen, maxLen)
+	}
+	return nil
 }
