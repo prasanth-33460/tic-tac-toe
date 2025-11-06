@@ -9,11 +9,6 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// Match implements the runtime.Match interface for a Tic-Tac-Toe game
-type Match struct {
-	service *GameService
-}
-
 // MatchInit initializes a new match instance
 func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
 	// Extract game mode from params, default to classic
@@ -45,6 +40,12 @@ func (m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db 
 	// Reject if match is full
 	if len(gameState.Players) >= MaxPlayers {
 		return state, false, "match is full"
+	}
+
+	// Validate join request using service layer
+	result := m.service.ValidateJoinRequest(ctx, gameState, presence.GetUserId(), metadata)
+	if !result.Valid {
+		return state, false, result.Message
 	}
 
 	// Reject if game already started
@@ -112,7 +113,7 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 				continue
 			}
 
-			if err := m.service.ProcessMove(ctx, gameState, message.GetUserId(), move.Position); err != nil {
+			if err := m.service.ProcessMove(ctx, gameState, message.GetUserId(), move.Position, tick); err != nil {
 				logger.Error("Failed to process move: %v", err)
 			}
 		}

@@ -1,3 +1,6 @@
 .cookie
 go.mod
 *.so
+modules/
+build/
+vendor/
