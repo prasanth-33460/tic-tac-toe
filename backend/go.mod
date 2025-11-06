@@ -1,4 +1,4 @@
-module tic-tac-toe
+module github.com/prasanth-33460/tic-tac-toe/backend
 
 go 1.22.2
 
