@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// NewGameState creates a fresh game state with the specified mode
 func NewGameState(mode string) *MatchState {
 	state := &MatchState{
 		Board:           [BoardSize]string{},
@@ -16,12 +15,10 @@ func NewGameState(mode string) *MatchState {
 		Preferences:     make(map[string]string),
 	}
 
-	// Initialize empty board
 	for i := range state.Board {
 		state.Board[i] = ""
 	}
 
-	// Set timeout for timed mode
 	if mode == ModeTimed {
 		state.TurnTimeoutSecs = TurnTimeoutSecs
 	}
@@ -29,7 +26,6 @@ func NewGameState(mode string) *MatchState {
 	return state
 }
 
-// IsTimedOut checks if the current turn has exceeded the time limit
 func (ms *MatchState) IsTimedOut() bool {
 	if ms.Mode != ModeTimed || ms.TurnStartTime == 0 {
 		return false
@@ -39,12 +35,11 @@ func (ms *MatchState) IsTimedOut() bool {
 	return elapsed > int64(ms.TurnTimeoutSecs)
 }
 
-// SwitchTurn changes the active player
-func (ms *MatchState) SwitchTurn() {
+func (ms *MatchState) SwitchTurn(tick int64) {
 	for userID := range ms.Players {
 		if userID != ms.CurrentTurnID {
 			ms.CurrentTurnID = userID
-			ms.TurnStartTime = time.Now().Unix()
+			ms.TurnStartTime = tick
 			return
 		}
 	}

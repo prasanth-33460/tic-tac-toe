@@ -9,14 +9,11 @@ import (
 	"github.com/prasanth-33460/tic-tac-toe/backend/rpc"
 )
 
-// RegisterRoutes registers all RPC endpoints and match handlers
 func RegisterRoutes(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
-	// Register match handler
 	if err := registerMatchHandler(initializer); err != nil {
 		return err
 	}
 
-	// Register RPC endpoints
 	if err := registerRPCEndpoints(initializer); err != nil {
 		return err
 	}
@@ -31,7 +28,6 @@ func registerMatchHandler(initializer runtime.Initializer) error {
 }
 
 func registerRPCEndpoints(initializer runtime.Initializer) error {
-	// Matchmaking endpoints
 	if err := initializer.RegisterRpc("find_match", rpc.RPCFindMatch); err != nil {
 		return err
 	}
@@ -39,10 +35,19 @@ func registerRPCEndpoints(initializer runtime.Initializer) error {
 		return err
 	}
 
-	// Leaderboard endpoints
 	if err := initializer.RegisterRpc("get_leaderboard", rpc.RPCGetLeaderboard); err != nil {
 		return err
 	}
 
+	if err := initializer.RegisterRpc("request_rematch", rpc.RPCRequestRematch); err != nil {
+		return err
+	}
+
+	if err := initializer.RegisterRpc("ban_player", rpc.RPCBanPlayer); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("unban_player", rpc.RPCUnbanPlayer); err != nil {
+		return err
+	}
 	return nil
 }

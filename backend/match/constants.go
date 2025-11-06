@@ -10,11 +10,11 @@ const (
 
 	TurnTimeoutSecs = 30
 
-	OpCodeMove    = 1
-	OpCodeState   = 2
-	OpCodeGameEnd = 3
-	OpCodeTimeout = 4
-	OpCodeChat    = 5
+	OpCodeMove    int64 = 1
+	OpCodeState   int64 = 2
+	OpCodeGameEnd int64 = 3
+	OpCodeTimeout int64 = 4
+	OpCodeChat    int64 = 5
 )
 
 var WinPatterns = [][]int{

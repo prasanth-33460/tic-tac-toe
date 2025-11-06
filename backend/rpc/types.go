@@ -22,3 +22,26 @@ type LeaderboardResponse struct {
 	GlobalWins []LeaderboardEntry `json:"global_wins"`
 	WinStreaks []LeaderboardEntry `json:"win_streaks"`
 }
+
+// BanRequest represents a player ban request
+type BanRequest struct {
+	TargetUserID string `json:"target_user_id"`
+	Reason       string `json:"reason"`
+}
+
+// BanResponse represents ban response
+type BanResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// RematchRequest represents a rematch request
+type RematchRequest struct {
+	MatchID string `json:"match_id"`
+}
+
+// RematchResponse represents rematch response
+type RematchResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}

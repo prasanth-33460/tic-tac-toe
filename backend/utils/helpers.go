@@ -40,7 +40,15 @@ func FilterStrings(slice []string, filter func(string) bool) []string {
 			filtered = append(filtered, s)
 		}
 	}
-	return filtered
+	return nil
+}
+
+// Abs returns the absolute value of an integer
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // ValidateString checks if a string is within the allowed length

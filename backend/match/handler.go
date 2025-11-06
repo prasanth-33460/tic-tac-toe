@@ -113,7 +113,7 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 				continue
 			}
 
-			if err := m.service.ProcessMove(ctx, gameState, message.GetUserId(), move.Position); err != nil {
+			if err := m.service.ProcessMove(ctx, gameState, message.GetUserId(), move.Position, tick); err != nil {
 				logger.Error("Failed to process move: %v", err)
 			}
 		}

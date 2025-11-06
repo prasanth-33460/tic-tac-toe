@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/prasanth-33460/tic-tac-toe/backend/utils"
 )
 
-// NewGameService creates a new game service instance
 func NewGameService(logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher) *GameService {
 	return &GameService{
 		logger:     logger,
@@ -21,20 +21,16 @@ func NewGameService(logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, 
 	}
 }
 
-// ValidateJoinRequest validates if a player can join a match based on various criteria
 func (s *GameService) ValidateJoinRequest(ctx context.Context, state *MatchState, userID string, metadata map[string]string) ValidationResult {
-	// Check if banned
 	if banned, err := s.IsPlayerBanned(ctx, userID); err == nil && banned {
 		return ValidationResult{Valid: false, Message: "player is banned"}
 	}
 
-	// Check skill level compatibility
 	playerSkill, matchSkill := s.getSkillLevels(metadata, state.Metadata)
 	if result := s.validateSkillCompatibility(playerSkill, matchSkill); !result.Valid {
 		return result
 	}
 
-	// Check game mode compatibility
 	if result := s.validateGameMode(metadata["mode"], state.Mode); !result.Valid {
 		return result
 	}
@@ -42,7 +38,6 @@ func (s *GameService) ValidateJoinRequest(ctx context.Context, state *MatchState
 	return ValidationResult{Valid: true}
 }
 
-// IsPlayerBanned checks if a player is banned from matchmaking
 func (s *GameService) IsPlayerBanned(ctx context.Context, userID string) (bool, error) {
 	var banned bool
 	query := "SELECT is_banned FROM player_status WHERE user_id = $1"
@@ -55,7 +50,6 @@ func (s *GameService) IsPlayerBanned(ctx context.Context, userID string) (bool, 
 	return banned, err
 }
 
-// getSkillLevels extracts skill levels from metadata
 func (s *GameService) getSkillLevels(playerMeta map[string]string, matchMeta map[string]interface{}) (playerSkill, matchSkill int) {
 	if skillStr, ok := playerMeta["skill_level"]; ok {
 		if skill, err := strconv.Atoi(skillStr); err == nil {
@@ -70,14 +64,13 @@ func (s *GameService) getSkillLevels(playerMeta map[string]string, matchMeta map
 	return
 }
 
-// validateSkillCompatibility checks if skill levels are compatible
 func (s *GameService) validateSkillCompatibility(playerSkill, matchSkill int) ValidationResult {
 	if playerSkill == 0 || matchSkill == 0 {
 		return ValidationResult{Valid: true}
 	}
 
-	maxSkillDiff := 20 // Configurable threshold
-	diff := abs(playerSkill - matchSkill)
+	maxSkillDiff := 20
+	diff := utils.Abs(playerSkill - matchSkill)
 	if diff > maxSkillDiff {
 		return ValidationResult{
 			Valid:   false,
@@ -88,7 +81,6 @@ func (s *GameService) validateSkillCompatibility(playerSkill, matchSkill int) Va
 	return ValidationResult{Valid: true}
 }
 
-// validateGameMode checks if game modes are compatible
 func (s *GameService) validateGameMode(playerMode, gameMode string) ValidationResult {
 	if playerMode == "" {
 		return ValidationResult{Valid: true}
@@ -104,16 +96,8 @@ func (s *GameService) validateGameMode(playerMode, gameMode string) ValidationRe
 	return ValidationResult{Valid: true}
 }
 
-// abs returns the absolute value of an integer
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 // ProcessMove handles a player's move
-func (s *GameService) ProcessMove(ctx context.Context, state *MatchState, userID string, position int) error {
+func (s *GameService) ProcessMove(ctx context.Context, state *MatchState, userID string, position int, tick int64) error {
 	if err := ValidateMove(state, userID, position); err != nil {
 		return err
 	}
@@ -136,10 +120,12 @@ func (s *GameService) ProcessMove(ctx context.Context, state *MatchState, userID
 			s.updatePlayerStats(ctx, state, playerID, isWinner)
 		}
 
+		s.recordMatchHistory(ctx, state)
+
 		s.broadcastState(state, OpCodeGameEnd)
 		s.logger.Info("Game ended - Winner: %s, Draw: %v", winner, isDraw)
 	} else {
-		state.SwitchTurn()
+		state.SwitchTurn(tick)
 		s.broadcastState(state, OpCodeState)
 	}
 
@@ -227,7 +213,7 @@ func (s *GameService) HandlePlayerLeave(ctx context.Context, state *MatchState, 
 // HandleSignal processes custom signals from clients
 func (s *GameService) HandleSignal(ctx context.Context, state *MatchState, userID string, data string) (string, error) {
 	var signalData map[string]interface{}
-	if err := json.Unmarshal([]byte(data), &signalData); err != nil {
+	if err := utils.JsonUnmarshal([]byte(data), &signalData); err != nil {
 		return "", fmt.Errorf("invalid signal data: %v", err)
 	}
 
@@ -270,31 +256,59 @@ func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchStat
 	return "rematch_accepted", nil
 }
 
+// handleChatMessage processes and persists chat messages
 func (s *GameService) handleChatMessage(ctx context.Context, state *MatchState, userID string, data map[string]interface{}) (string, error) {
 	message, ok := data["message"].(string)
 	if !ok {
 		return "", fmt.Errorf("missing message content")
 	}
 
-	if player, ok := state.Players[userID]; ok {
-		chatData := map[string]interface{}{
-			"type":      "chat",
-			"sender":    player.Username,
-			"message":   message,
-			"timestamp": time.Now().Unix(),
-		}
-
-		chatJSON, _ := json.Marshal(chatData)
-		s.dispatcher.BroadcastMessage(OpCodeChat, chatJSON, nil, nil, true)
-		return "message_sent", nil
+	// Validate message length
+	if len(message) == 0 || len(message) > 500 {
+		return "", fmt.Errorf("message must be between 1-500 characters")
 	}
 
-	return "", fmt.Errorf("player not found")
+	player, ok := state.Players[userID]
+	if !ok {
+		return "", fmt.Errorf("player not found")
+	}
+
+	// Prepare chat data
+	chatData := map[string]interface{}{
+		"type":      "chat",
+		"sender":    player.Username,
+		"message":   message,
+		"timestamp": time.Now().Unix(),
+	}
+
+	chatJSON, _ := json.Marshal(chatData)
+
+	s.dispatcher.BroadcastMessage(OpCodeChat, chatJSON, nil, nil, true)
+
+	s.persistChatMessage(ctx, userID, player.Username, message)
+
+	return "message_sent", nil
 }
 
-// updatePlayerStats updates leaderboards and player records
+func (s *GameService) persistChatMessage(ctx context.Context, userID, username, message string) {
+	query := `
+    INSERT INTO match_chat (user_id, username, message, created_at)
+    VALUES ($1, $2, $3, NOW())
+    `
+
+	_, err := s.db.ExecContext(ctx, query, userID, username, message)
+	if err != nil {
+		s.logger.Error("Failed to persist chat message: %v", err)
+	}
+}
+
+// / updatePlayerStats updates leaderboards and player records
 func (s *GameService) updatePlayerStats(ctx context.Context, state *MatchState, userID string, won bool) {
-	player := state.Players[userID]
+	player, exists := state.Players[userID]
+	if !exists {
+		s.logger.Error("Player not found for stats update: %s", userID)
+		return
+	}
 
 	if won {
 		player.Wins++
@@ -315,9 +329,43 @@ func (s *GameService) updatePlayerStats(ctx context.Context, state *MatchState, 
 	}
 }
 
+// recordMatchHistory persists match outcome to database
+func (s *GameService) recordMatchHistory(ctx context.Context, state *MatchState) {
+	if state.Winner == "" && !state.IsDraw {
+		return // Skip if no valid outcome
+	}
+
+	query := `
+    INSERT INTO match_history (match_id, winner_id, loser_id, mode, duration_seconds)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (match_id) DO NOTHING
+    `
+
+	var loserID *string
+	if state.Winner != "" {
+		for id := range state.Players {
+			if id != state.Winner {
+				loserID = &id
+				break
+			}
+		}
+	}
+
+	// Calculate duration in seconds
+	duration := int((time.Now().Unix() - state.TurnStartTime) / 60)
+	if duration < 0 {
+		duration = 0
+	}
+
+	_, err := s.db.ExecContext(ctx, query, state.Winner, state.Winner, loserID, state.Mode, duration)
+	if err != nil {
+		s.logger.Error("Failed to record match history: %v", err)
+	}
+}
+
 // broadcastState sends current game state to all connected players
 func (s *GameService) broadcastState(state *MatchState, opCode int64) {
-	stateJSON, err := json.Marshal(state)
+	stateJSON, err := utils.JsonMarshal(state)
 	if err != nil {
 		s.logger.Error("Failed to marshal game state: %v", err)
 		return

@@ -5,12 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// RPCFindMatch uses the matchmaker to pair players automatically
 func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	var req MatchRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
@@ -18,55 +16,23 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		return "", fmt.Errorf("invalid request")
 	}
 
-	// Default to classic mode
+	if req.SkillLevel < 0 || req.SkillLevel > 100 {
+		return "", fmt.Errorf("skill level must be between 0-100")
+	}
+
 	if req.Mode == "" {
 		req.Mode = "classic"
 	}
 
-	// Set up match parameters with enhanced matching criteria
+	// FIXED: Only primitive, JSON-serializable types
 	params := map[string]interface{}{
-		"mode":        req.Mode,
-		"skillLevel":  req.SkillLevel,
-		"preferences": req.Preferences,
-		"metadata":    req.Metadata,
+		"mode": req.Mode,
 	}
 
-	// Create match labels for sophisticated filtering
-	labels := []string{
-		fmt.Sprintf("+label.mode:%s", req.Mode),
-		fmt.Sprintf("+label.skillRange:%d-%d",
-			req.SkillLevel-req.RatingRange,
-			req.SkillLevel+req.RatingRange),
-	}
-
-	// Add preference-based labels
-	for key, value := range req.Preferences {
-		labels = append(labels, fmt.Sprintf("+label.pref_%s:%s", key, value))
-	}
-
-	// Combine all labels
-	label := strings.Join(labels, " ")
-
-	// Try to find an existing match first
-	limit := 1
-	authoritative := true
-	matches, err := nk.MatchList(ctx, limit, authoritative, label, nil, nil, "")
+	matchID, err := nk.MatchCreate(ctx, "tictactoe", params)
 	if err != nil {
-		logger.Error("Failed to list matches: %v", err)
-		return "", fmt.Errorf("matchmaking failed")
-	}
-
-	var matchID string
-	if len(matches) > 0 {
-		// Join existing match
-		matchID = matches[0].MatchId
-	} else {
-		// Create new match if no suitable match found
-		matchID, err = nk.MatchCreate(ctx, "tictactoe", params)
-		if err != nil {
-			logger.Error("Failed to create match: %v", err)
-			return "", fmt.Errorf("match creation failed")
-		}
+		logger.Error("Failed to create match: %v", err)
+		return "", fmt.Errorf("match creation failed")
 	}
 
 	response := map[string]interface{}{
@@ -83,14 +49,12 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 	return string(responseJSON), nil
 }
 
-// RPCCreateQuickMatch creates an immediate match for testing/private games
 func RPCCreateQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	var req MatchRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		req.Mode = "classic"
 	}
 
-	// Create match with specified mode
 	params := map[string]interface{}{
 		"mode": req.Mode,
 	}
@@ -110,14 +74,12 @@ func RPCCreateQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	return string(responseJSON), nil
 }
 
-// MatchmakerMatched is called when the matchmaker finds suitable players
 func MatchmakerMatched(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, entries []runtime.MatchmakerEntry) (string, error) {
 	if len(entries) != 2 {
 		logger.Error("Invalid number of players matched: %d", len(entries))
 		return "", fmt.Errorf("invalid player count")
 	}
 
-	// Get the game mode from the first player's properties
 	mode := "classic"
 	if props := entries[0].GetProperties(); props != nil {
 		if modeVal, ok := props["mode"]; ok {
@@ -127,7 +89,6 @@ func MatchmakerMatched(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		}
 	}
 
-	// Create new match for matched players
 	params := map[string]interface{}{
 		"mode": mode,
 	}
