@@ -9,7 +9,7 @@ import (
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
-	if err := dbpkg.InitializeDatabase(ctx, logger, db); err != nil {
+	if err := dbpkg.InitializeDatabase(ctx, logger, db, nk); err != nil {
 		logger.Error("Database initialization failed: %v", err)
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	dbpkg "github.com/prasanth-33460/tic-tac-toe/backend/db"
 )
 
 func RPCGetLeaderboard(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
@@ -14,10 +15,18 @@ func RPCGetLeaderboard(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		WinStreaks: []LeaderboardEntry{},
 	}
 
-	winsRecords, _, _, _, err := nk.LeaderboardRecordsList(ctx, "global_wins", nil, 10, "", 0)
+	// Ensure leaderboards exist before fetching (create on demand if missing)
+	if err := dbpkg.EnsureLeaderboards(logger, nk); err != nil {
+		logger.Warn("Failed to ensure leaderboards before fetch: %v", err)
+	}
+
+	serverCtx := context.Background()
+
+	winsRecords, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, "global_wins", nil, 10, "", 0)
 	if err != nil {
 		logger.Error("Failed to fetch wins leaderboard: %v", err)
 	} else {
+		logger.Info("Fetched %d wins leaderboard records", len(winsRecords))
 		for _, record := range winsRecords {
 			response.GlobalWins = append(response.GlobalWins, LeaderboardEntry{
 				UserID:   record.GetOwnerId(),
@@ -28,10 +37,11 @@ func RPCGetLeaderboard(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		}
 	}
 
-	streakRecords, _, _, _, err := nk.LeaderboardRecordsList(ctx, "win_streaks", nil, 10, "", 0)
+	streakRecords, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, "win_streaks", nil, 10, "", 0)
 	if err != nil {
 		logger.Error("Failed to fetch streaks leaderboard: %v", err)
 	} else {
+		logger.Info("Fetched %d streak leaderboard records", len(streakRecords))
 		for _, record := range streakRecords {
 			response.WinStreaks = append(response.WinStreaks, LeaderboardEntry{
 				UserID:   record.GetOwnerId(),
@@ -42,6 +52,7 @@ func RPCGetLeaderboard(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		}
 	}
 
+	logger.Info("Returning leaderboard response with %d wins and %d streaks", len(response.GlobalWins), len(response.WinStreaks))
 	responseJSON, _ := json.Marshal(response)
 	return string(responseJSON), nil
 }
