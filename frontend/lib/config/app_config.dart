@@ -1,6 +1,6 @@
 class AppConfig {
   // Backend configuration
-  static const String nakamaHost = '192.168.31.244';
+  static const String nakamaHost = '10.0.2.2';
   static const int nakamaPort = 7350;
   static const String nakamaServerKey = 'defaultkey';
   static const bool useSsl = false;
