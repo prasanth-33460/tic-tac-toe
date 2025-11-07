@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -31,6 +32,7 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 
 	logger.Info("🎯 Finding match with mode: %s, skill: %d", req.Mode, req.SkillLevel)
 
+	// Create a new match directly instead of using matchmaker
 	params := map[string]interface{}{
 		"mode": req.Mode,
 	}
@@ -41,9 +43,31 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		return "", fmt.Errorf("match creation failed")
 	}
 
+	shortCode := generateShortCode(nk, ctx, logger)
+	if shortCode == "" {
+		return "", fmt.Errorf("failed to generate short code")
+	}
+
+	// store short code with match ID as JSON value
+	matchData := map[string]string{"matchId": matchID}
+	matchDataJSON, _ := json.Marshal(matchData)
+
+	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+		Collection:      "match_codes",
+		Key:             shortCode,
+		Value:           string(matchDataJSON),
+		PermissionRead:  2, // public read
+		PermissionWrite: 0,
+	}})
+	if err != nil {
+		logger.Error("Failed to store short code: %v", err)
+		return "", fmt.Errorf("storage error")
+	}
+
 	response := map[string]interface{}{
-		"matchId": matchID,
-		"mode":    req.Mode,
+		"matchId":   matchID,
+		"shortCode": shortCode,
+		"mode":      req.Mode,
 	}
 
 	responseJSON, err := json.Marshal(response)
@@ -52,7 +76,7 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		return "", fmt.Errorf("internal error")
 	}
 
-	logger.Info("✅ Match found: %s", matchID)
+	logger.Info("✅ Match created successfully: %s", matchID)
 	return string(responseJSON), nil
 }
 
@@ -127,4 +151,54 @@ func MatchmakerMatched(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 
 	logger.Info("Matchmaker created match %s with %d players", matchID, len(entries))
 	return matchID, nil
+}
+
+func generateShortCode(nk runtime.NakamaModule, ctx context.Context, logger runtime.Logger) string {
+	for i := 0; i < 10; i++ {
+		code := fmt.Sprintf("%06d", rand.Intn(1000000))
+		// check if exists
+		objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
+			Collection: "match_codes",
+			Key:        code,
+		}})
+		if err != nil || len(objects) == 0 {
+			return code
+		}
+	}
+	logger.Error("Failed to generate unique short code")
+	return ""
+}
+
+func RPCGetMatchIdByCode(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal([]byte(payload), &req); err != nil {
+		return "", fmt.Errorf("invalid payload")
+	}
+
+	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
+		Collection: "match_codes",
+		Key:        req.Code,
+	}})
+	if err != nil || len(objects) == 0 {
+		logger.Warn("Code not found: %s", req.Code)
+		return "", fmt.Errorf("invalid match code")
+	}
+
+	// Parse the stored JSON value
+	var matchData map[string]string
+	if err := json.Unmarshal([]byte(objects[0].Value), &matchData); err != nil {
+		logger.Error("Failed to parse match data: %v", err)
+		return "", fmt.Errorf("invalid match data")
+	}
+
+	matchId := matchData["matchId"]
+	if matchId == "" {
+		return "", fmt.Errorf("invalid match data")
+	}
+
+	response := map[string]string{"matchId": matchId}
+	responseJSON, _ := json.Marshal(response)
+	return string(responseJSON), nil
 }

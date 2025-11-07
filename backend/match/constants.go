@@ -8,7 +8,7 @@ const (
 	ModeClassic = "classic"
 	ModeTimed   = "timed"
 
-	TurnTimeoutSecs = 30
+	TurnTimeoutSecs = 15
 
 	OpCodeMove    int64 = 1
 	OpCodeState   int64 = 2

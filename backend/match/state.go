@@ -39,7 +39,7 @@ func (ms *MatchState) SwitchTurn(tick int64) {
 	for userID := range ms.Players {
 		if userID != ms.CurrentTurnID {
 			ms.CurrentTurnID = userID
-			ms.TurnStartTime = tick
+			ms.TurnStartTime = time.Now().Unix()
 			return
 		}
 	}
