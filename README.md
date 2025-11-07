@@ -347,39 +347,6 @@ class AppConfig {
 2. **Flutter Plugin**
    - File → Settings → Plugins → Install Flutter plugin
 
-## 🧪 Testing
-
-### Backend Testing
-
-```bash
-cd backend
-
-# Run all tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Run specific package
-go test ./match
-go test ./rpc
-```
-
-### Frontend Testing
-
-```bash
-cd frontend
-
-# Run widget tests
-flutter test
-
-# Run integration tests
-flutter test integration_test/
-
-# Run tests with coverage
-flutter test --coverage
-```
-
 ### Manual Testing Scenarios
 
 #### 1. Single Player Game
@@ -684,10 +651,6 @@ tic-tac-toe/
 │   └── pubspec.yaml       # Dependencies
 └── README.md              # This file
 ```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
