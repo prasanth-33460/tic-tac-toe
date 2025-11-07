@@ -134,21 +134,53 @@ func (s *GameService) ProcessMove(ctx context.Context, state *MatchState, userID
 
 // HandleTimeout processes turn timeout in timed mode
 func (s *GameService) HandleTimeout(ctx context.Context, state *MatchState) {
-	s.logger.Info("Turn timeout for player: %s", state.CurrentTurnID)
+	s.logger.Info("Turn timeout for player: %s - making automatic move", state.CurrentTurnID)
 
-	state.GameOver = true
+	player := state.Players[state.CurrentTurnID]
 
-	// Other player wins by timeout
-	for userID := range state.Players {
-		if userID != state.CurrentTurnID {
-			state.Winner = userID
-			s.updatePlayerStats(ctx, state, userID, true)
-		} else {
-			s.updatePlayerStats(ctx, state, userID, false)
+	// Find first available position for automatic move
+	autoPosition := -1
+	for i := 0; i < BoardSize; i++ {
+		if state.Board[i] == "" {
+			autoPosition = i
+			break
 		}
 	}
 
-	s.broadcastState(state, OpCodeTimeout)
+	if autoPosition == -1 {
+		// Board is full - this shouldn't happen in timeout, but just in case
+		s.logger.Error("No available positions for automatic move")
+		return
+	}
+
+	// Make the automatic move
+	state.Board[autoPosition] = player.Symbol
+	state.MoveCount++
+
+	s.logger.Info("Automatic move: %s placed %s at position %d (timeout)", player.Username, player.Symbol, autoPosition)
+
+	winner, isDraw := CheckWinner(state)
+	if winner != "" || isDraw {
+		state.GameOver = true
+		state.Winner = winner
+		state.IsDraw = isDraw
+
+		// Update stats for both players
+		for playerID := range state.Players {
+			isWinner := playerID == winner
+			s.updatePlayerStats(ctx, state, playerID, isWinner)
+		}
+
+		s.recordMatchHistory(ctx, state)
+
+		s.broadcastState(state, OpCodeGameEnd)
+		s.logger.Info("Game ended by timeout auto-move - Winner: %s, Draw: %v", winner, isDraw)
+	} else {
+		// Continue game - switch to next player
+		state.SwitchTurn(0) // tick not needed since we use Unix time
+		s.broadcastState(state, OpCodeState)
+		s.logger.Info("Timeout auto-move completed, continuing game")
+	}
 }
 
 // HandlePlayerJoin processes a new player joining the game
@@ -174,10 +206,12 @@ func (s *GameService) HandlePlayerJoin(state *MatchState, presence runtime.Prese
 
 	if len(state.Players) == 1 {
 		state.CurrentTurnID = presence.GetUserId()
-		state.TurnStartTime = tick
+		// Don't set TurnStartTime yet - wait for game to start
 	}
 
 	if len(state.Players) == MaxPlayers {
+		// Game is starting now, set the turn start time
+		state.TurnStartTime = time.Now().Unix()
 		s.broadcastState(state, OpCodeState)
 		s.logger.Info("Match ready, starting game")
 	}
