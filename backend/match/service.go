@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	dbpkg "github.com/prasanth-33460/tic-tac-toe/backend/db"
 	"github.com/prasanth-33460/tic-tac-toe/backend/utils"
 )
 
@@ -199,6 +200,9 @@ func (s *GameService) HandlePlayerJoin(state *MatchState, presence runtime.Prese
 		Username:    presence.GetUsername(),
 		Symbol:      symbol,
 		IsConnected: true,
+		Wins:        0,
+		Losses:      0,
+		Streak:      0,
 	}
 
 	state.Players[presence.GetUserId()] = player
@@ -344,22 +348,38 @@ func (s *GameService) updatePlayerStats(ctx context.Context, state *MatchState, 
 		return
 	}
 
+	s.logger.Info("Updating stats for player %s (%s), won: %v", userID, player.Username, won)
+
 	if won {
 		player.Wins++
+		player.Streak++
+
+		// Ensure leaderboards exist (create on demand if missing)
+		if err := dbpkg.EnsureLeaderboards(s.logger, s.nk); err != nil {
+			s.logger.Warn("Failed to ensure leaderboards before write: %v", err)
+		}
+
+		serverCtx := context.Background()
 
 		// Increment wins leaderboard
-		_, err := s.nk.LeaderboardRecordWrite(ctx, "global_wins", userID, player.Username, 1, 0, nil, nil)
+		record, err := s.nk.LeaderboardRecordWrite(serverCtx, "global_wins", userID, player.Username, 1, 0, nil, nil)
 		if err != nil {
-			s.logger.Error("Failed to update wins leaderboard: %v", err)
+			s.logger.Error("Failed to update wins leaderboard for %s: %v", userID, err)
+		} else {
+			s.logger.Info("Successfully updated wins leaderboard for %s: score=%d", userID, record.GetScore())
 		}
 
 		// Update win streak
-		_, err = s.nk.LeaderboardRecordWrite(ctx, "win_streaks", userID, player.Username, int64(player.Wins), 0, nil, nil)
+		record, err = s.nk.LeaderboardRecordWrite(serverCtx, "win_streaks", userID, player.Username, int64(player.Streak), 0, nil, nil)
 		if err != nil {
-			s.logger.Error("Failed to update streak leaderboard: %v", err)
+			s.logger.Error("Failed to update streak leaderboard for %s: %v", userID, err)
+		} else {
+			s.logger.Info("Successfully updated streak leaderboard for %s: score=%d", userID, record.GetScore())
 		}
 	} else if !state.IsDraw {
 		player.Losses++
+		player.Streak = 0 // Reset streak on loss
+		s.logger.Info("Reset streak for player %s due to loss", userID)
 	}
 }
 

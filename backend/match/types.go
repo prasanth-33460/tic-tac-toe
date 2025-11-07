@@ -35,6 +35,7 @@ type PlayerData struct {
 	IsConnected bool   `json:"is_connected"`
 	Wins        int    `json:"wins"`
 	Losses      int    `json:"losses"`
+	Streak      int    `json:"streak"`
 }
 
 // MoveMessage represents a player's move attempt
