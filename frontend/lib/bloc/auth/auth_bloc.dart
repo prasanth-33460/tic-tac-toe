@@ -30,7 +30,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'device_${event.username}_${DateTime.now().millisecondsSinceEpoch}';
 
       // Step 3: Authenticate with Nakama
-      final success = await nakamaService.authenticateDevice(deviceId);
+      final success = await nakamaService.authenticateDevice(
+        deviceId,
+        displayName: event.username,
+      );
 
       if (success) {
         // Step 4: Connect WebSocket for real-time

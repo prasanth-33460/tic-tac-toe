@@ -33,15 +33,20 @@ class NakamaService {
     );
   }
 
-  Future<bool> authenticateDevice(String deviceId) async {
+  Future<bool> authenticateDevice(
+    String deviceId, {
+    String? displayName,
+  }) async {
     try {
       _session = await _client.authenticateDevice(
         deviceId: deviceId,
         create: true,
-        username: deviceId,
+        username: displayName ?? deviceId,
       );
 
-      print('✅ Authenticated: ${_session?.userId}');
+      print(
+        '✅ Authenticated: ${_session?.userId} with display name: ${displayName ?? deviceId}',
+      );
       return _session != null;
     } catch (e) {
       print('❌ Auth failed: $e');
@@ -285,14 +290,13 @@ class NakamaService {
       try {
         print('🔄 Attempt $attempt to fetch leaderboard...');
 
-        final result = await _client.rpc(
-          session: _session!,
+        final result = await NakamaWebsocketClient.instance.rpc(
           id: 'get_leaderboard',
-          payload: json.encode({}),
+          payload: '',
         );
 
         final payload = result.payload;
-        if (payload == null || payload.isEmpty) {
+        if (payload.isEmpty) {
           print('⚠️ Attempt $attempt: Empty payload, retrying...');
 
           if (attempt < 3) {
@@ -355,8 +359,4 @@ class NakamaService {
   void dispose() {
     _matchStateController.close();
   }
-}
-
-extension on String? {
-  get payload => null;
 }
