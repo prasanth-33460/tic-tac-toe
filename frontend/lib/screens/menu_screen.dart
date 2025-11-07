@@ -170,7 +170,7 @@ class _MenuContentState extends State<MenuContent> {
 
                   // Leaderboard Button
                   _MenuButton(
-                    text: '📊 Leaderboard',
+                    text: 'Leaderboard',
                     subtitle: 'Top players',
                     icon: Icons.leaderboard,
                     onPressed: () => _showLeaderboard(context),
