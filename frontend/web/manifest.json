@@ -1,6 +1,6 @@
 {
-    "name": "frontend",
-    "short_name": "frontend",
+    "name": "tic-tac-toe",
+    "short_name": "tic-tac-toe",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
