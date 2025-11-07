@@ -202,3 +202,48 @@ func RPCGetMatchIdByCode(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	responseJSON, _ := json.Marshal(response)
 	return string(responseJSON), nil
 }
+
+func RPCGetMatchInfo(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal([]byte(payload), &req); err != nil {
+		return "", fmt.Errorf("invalid payload")
+	}
+
+	// First get the match ID from the code
+	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
+		Collection: "match_codes",
+		Key:        req.Code,
+	}})
+	if err != nil || len(objects) == 0 {
+		logger.Warn("Code not found: %s", req.Code)
+		return "", fmt.Errorf("invalid match code")
+	}
+
+	// Parse the stored JSON value
+	var matchData map[string]string
+	if err := json.Unmarshal([]byte(objects[0].Value), &matchData); err != nil {
+		logger.Error("Failed to parse match data: %v", err)
+		return "", fmt.Errorf("invalid match data")
+	}
+
+	matchId := matchData["matchId"]
+	if matchId == "" {
+		return "", fmt.Errorf("invalid match data")
+	}
+
+	// Check if the match actually exists by trying to get its state
+	_, err = nk.MatchGet(ctx, matchId)
+	if err != nil {
+		logger.Warn("Match not found: %s", matchId)
+		return "", fmt.Errorf("match not found")
+	}
+
+	response := map[string]interface{}{
+		"exists":  true,
+		"matchId": matchId,
+	}
+	responseJSON, _ := json.Marshal(response)
+	return string(responseJSON), nil
+}

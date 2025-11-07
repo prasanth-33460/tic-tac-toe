@@ -37,6 +37,9 @@ func registerRPCEndpoints(initializer runtime.Initializer) error {
 	if err := initializer.RegisterRpc("get_match_by_code", rpc.RPCGetMatchIdByCode); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("get_match_info", rpc.RPCGetMatchInfo); err != nil {
+		return err
+	}
 
 	if err := initializer.RegisterRpc("get_leaderboard", rpc.RPCGetLeaderboard); err != nil {
 		return err
