@@ -24,15 +24,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
 
     try {
+      // Trim and sanitize username
+      final cleanUsername = event.username.trim();
+      // Ensure device ID has no spaces or special characters
+      final safeUsername = cleanUsername.replaceAll(
+        RegExp(r'[^a-zA-Z0-9_]'),
+        '_',
+      );
+
       // Step 2: Generate device ID from username
       // Thought: "Use username as device ID for simplicity"
       final deviceId =
-          'device_${event.username}_${DateTime.now().millisecondsSinceEpoch}';
+          'device_${safeUsername}_${DateTime.now().millisecondsSinceEpoch}';
 
       // Step 3: Authenticate with Nakama
       final success = await nakamaService.authenticateDevice(
         deviceId,
-        displayName: event.username,
+        displayName: cleanUsername,
       );
 
       if (success) {

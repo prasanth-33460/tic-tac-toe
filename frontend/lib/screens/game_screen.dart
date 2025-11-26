@@ -66,6 +66,29 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  String _getOpponentName(GamePlaying state) {
+    final opponentSymbol = state.mySymbol == 'X' ? 'O' : 'X';
+    if (state.gameState.players != null) {
+      for (var p in state.gameState.players!.values) {
+        if (p is Map && p['symbol'] == opponentSymbol) {
+          return p['username'] as String? ?? 'Opponent';
+        }
+      }
+    }
+    return 'Opponent';
+  }
+
+  String _getMyName(GamePlaying state) {
+    if (state.gameState.players != null) {
+      for (var p in state.gameState.players!.values) {
+        if (p is Map && p['symbol'] == state.mySymbol) {
+          return p['username'] as String? ?? 'You';
+        }
+      }
+    }
+    return 'You';
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<GameBloc, GameState>(
@@ -123,7 +146,7 @@ class _GameScreenState extends State<GameScreen> {
                     PlayerCard(
                       symbol: state.mySymbol == 'X' ? 'O' : 'X',
                       isActive: !state.isMyTurn,
-                      username: 'Opponent',
+                      username: _getOpponentName(state),
                     ),
 
                     // Timer display for timed mode
@@ -198,7 +221,7 @@ class _GameScreenState extends State<GameScreen> {
                     PlayerCard(
                       symbol: state.mySymbol,
                       isActive: state.isMyTurn,
-                      username: 'You',
+                      username: _getMyName(state),
                       isMe: true,
                     ),
                   ],

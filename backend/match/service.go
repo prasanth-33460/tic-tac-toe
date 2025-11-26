@@ -248,6 +248,12 @@ func (s *GameService) HandlePlayerLeave(ctx context.Context, state *MatchState, 
 	}
 }
 
+// ProcessRematch handles a rematch request
+func (s *GameService) ProcessRematch(ctx context.Context, state *MatchState, userID string) error {
+	_, err := s.handleRematchRequest(ctx, state, userID)
+	return err
+}
+
 // HandleSignal processes custom signals from clients
 func (s *GameService) HandleSignal(ctx context.Context, state *MatchState, userID string, data string) (string, error) {
 	var signalData map[string]interface{}
@@ -275,12 +281,36 @@ func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchStat
 		return "", fmt.Errorf("game is still in progress")
 	}
 
+	// Mark this player as wanting a rematch
+	if state.RematchRequests == nil {
+		state.RematchRequests = make(map[string]bool)
+	}
+	state.RematchRequests[userID] = true
+
+	// Check if all connected players have requested
+	connectedCount := 0
+	for _, p := range state.Players {
+		if p.IsConnected {
+			connectedCount++
+			if !state.RematchRequests[p.UserID] {
+				// Not everyone has requested yet
+				s.broadcastState(state, OpCodeState)
+				return "rematch_requested", nil
+			}
+		}
+	}
+
+	if connectedCount < 2 {
+		return "waiting_for_players", nil
+	}
+
 	// Reset game state but keep players
 	state.Board = [BoardSize]string{}
 	state.GameOver = false
 	state.Winner = ""
 	state.IsDraw = false
 	state.MoveCount = 0
+	state.RematchRequests = make(map[string]bool)
 
 	// Switch first turn to the other player
 	for id := range state.Players {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nakama/nakama.dart';
 import '../../models/game_state_model.dart';
 import '../../services/nakama_service.dart';
 import '../../services/game_service.dart';
@@ -17,7 +18,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   String? _currentMatchId;
   String? _mySymbol;
   StreamSubscription<Map<String, dynamic>>? _matchStateSubscription;
-  StreamSubscription? _matchmakerSubscription;
+  StreamSubscription<MatchmakerMatched>? _matchmakerSubscription;
 
   GameBloc({
     required this.nakamaService,
@@ -288,9 +289,13 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   /// Handle rematch event
   /// Thought: "User wants to play again"
   Future<void> _onRematch(RematchEvent event, Emitter<GameState> emit) async {
-    // Leave current match and create new one
-    await _onLeaveMatch(const LeaveMatchEvent(), emit);
-    add(CreateMatchEvent(mode));
+    try {
+      await nakamaService.sendRematch();
+      // Don't emit state change yet, wait for server response
+      // But we could emit a "Waiting for opponent" state if we had one
+    } catch (e) {
+      emit(GameError('Error requesting rematch: $e'));
+    }
   }
 
   /// Handle leave match event

@@ -214,23 +214,15 @@ class _MenuContentState extends State<MenuContent> {
     final nakamaService = context.read<NakamaService>();
     final actualUserId = nakamaService.userId ?? widget.userId;
 
-    // Create BRAND NEW GameBloc
-    final gameBloc = GameBloc(
-      nakamaService: nakamaService,
-      userId: actualUserId,
-      mode: mode,
-    );
-    debugPrint('🎮 GameBloc created successfully');
-
-    // Dispatch create event
-    gameBloc.add(CreateMatchEvent(mode));
-    debugPrint('📤 CreateMatchEvent dispatched with mode: $mode');
-
     // Navigate with new bloc
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: gameBloc,
+        builder: (_) => BlocProvider(
+          create: (context) => GameBloc(
+            nakamaService: nakamaService,
+            userId: actualUserId,
+            mode: mode,
+          )..add(CreateMatchEvent(mode)),
           child: MatchmakingScreen(mode: mode),
         ),
       ),
@@ -251,23 +243,15 @@ class _MenuContentState extends State<MenuContent> {
     final nakamaService = context.read<NakamaService>();
     final actualUserId = nakamaService.userId ?? widget.userId;
 
-    // Create BRAND NEW GameBloc
-    final gameBloc = GameBloc(
-      nakamaService: nakamaService,
-      userId: actualUserId,
-      mode: 'join', // Will be determined from match data
-    );
-    debugPrint('🎮 GameBloc created successfully');
-
-    // Dispatch join event
-    gameBloc.add(JoinMatchEvent(matchId));
-    debugPrint('📤 JoinMatchEvent dispatched');
-
     // Navigate with new bloc
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: gameBloc,
+        builder: (_) => BlocProvider(
+          create: (context) => GameBloc(
+            nakamaService: nakamaService,
+            userId: actualUserId,
+            mode: 'join', // Will be determined from match data
+          )..add(JoinMatchEvent(matchId)),
           child: MatchmakingScreen(mode: 'join'),
         ),
       ),
@@ -276,11 +260,20 @@ class _MenuContentState extends State<MenuContent> {
   }
 
   void _findMatch(BuildContext context, String mode) {
-    context.read<GameBloc>().add(FindMatchEvent(mode));
+    debugPrint('🎯 Finding match with mode: $mode');
+
+    final nakamaService = context.read<NakamaService>();
+    final actualUserId = nakamaService.userId ?? widget.userId;
+
+    // Navigate with new bloc
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: context.read<GameBloc>(),
+        builder: (_) => BlocProvider(
+          create: (context) => GameBloc(
+            nakamaService: nakamaService,
+            userId: actualUserId,
+            mode: mode,
+          )..add(FindMatchEvent(mode)),
           child: MatchmakingScreen(mode: mode),
         ),
       ),

@@ -13,6 +13,7 @@ func NewGameState(mode string) *MatchState {
 		MoveCount:       0,
 		Metadata:        make(map[string]interface{}),
 		Preferences:     make(map[string]string),
+		RematchRequests: make(map[string]bool),
 	}
 
 	for i := range state.Board {

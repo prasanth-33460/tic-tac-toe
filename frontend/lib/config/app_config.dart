@@ -13,6 +13,7 @@ class AppConfig {
   static const int opCodeMove = 1;
   static const int opCodeState = 2;
   static const int opCodeGameEnd = 3;
+  static const int opCodeRematch = 6;
 
   // UI Configuration
   static const double gameBoardPadding = 12.0;

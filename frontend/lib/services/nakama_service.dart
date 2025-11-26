@@ -105,6 +105,10 @@ class NakamaService {
   Future<void> startMatchmaking({String mode = 'classic'}) async {
     if (_session == null) return;
 
+    if (_matchmakerTicket != null) {
+      await cancelMatchmaking();
+    }
+
     try {
       final socket = NakamaWebsocketClient.instance;
       final ticket = await socket.addMatchmaker(
@@ -322,6 +326,26 @@ class NakamaService {
       print('✅ Sent move: position $position');
     } catch (e) {
       print('❌ Send move failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> sendRematch() async {
+    if (_currentMatchId == null) {
+      throw Exception('Not in a match');
+    }
+
+    try {
+      final socket = NakamaWebsocketClient.instance;
+      socket.sendMatchData(
+        matchId: _currentMatchId!,
+        opCode: AppConfig.opCodeRematch,
+        data: [],
+      );
+
+      print('✅ Sent rematch request');
+    } catch (e) {
+      print('❌ Send rematch failed: $e');
       rethrow;
     }
   }

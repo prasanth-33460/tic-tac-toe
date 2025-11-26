@@ -15,6 +15,7 @@ const (
 	OpCodeGameEnd int64 = 3
 	OpCodeTimeout int64 = 4
 	OpCodeChat    int64 = 5
+	OpCodeRematch int64 = 6
 )
 
 var WinPatterns = [][]int{

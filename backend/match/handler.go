@@ -116,6 +116,10 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 			if err := m.service.ProcessMove(ctx, gameState, message.GetUserId(), move.Position, tick); err != nil {
 				logger.Error("Failed to process move: %v", err)
 			}
+		} else if message.GetOpCode() == OpCodeRematch {
+			if err := m.service.ProcessRematch(ctx, gameState, message.GetUserId()); err != nil {
+				logger.Error("Failed to process rematch: %v", err)
+			}
 		}
 	}
 

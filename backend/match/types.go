@@ -25,6 +25,7 @@ type MatchState struct {
 	MoveCount       int                    `json:"move_count"`
 	Metadata        map[string]interface{} `json:"metadata"`
 	Preferences     map[string]string      `json:"preferences"`
+	RematchRequests map[string]bool        `json:"rematch_requests"`
 }
 
 // PlayerData contains information about each player in the match
