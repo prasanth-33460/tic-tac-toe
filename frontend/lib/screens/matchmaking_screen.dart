@@ -20,14 +20,21 @@ class MatchmakingScreen extends StatelessWidget {
     return BlocConsumer<GameBloc, GameState>(
       listener: (context, state) {
         debugPrint('🎯 MatchmakingScreen state changed: ${state.runtimeType}');
+
+        // Handle navigation back to menu
+        if (state is GameInitial) {
+          debugPrint(
+            '🔙 GameInitial state detected - popping MatchmakingScreen',
+          );
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          return;
+        }
+
         if (state is GameError) {
           debugPrint('❌ Game error: ${state.message}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message), backgroundColor: Colors.red),
           );
-          // Only pop if we are in the matchmaking phase
-          // If we are in game, we might want to stay or show error differently
-          // For now, let's not pop automatically on error to avoid closing the screen abruptly
         }
       },
       builder: (context, state) {

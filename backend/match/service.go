@@ -280,7 +280,9 @@ func (s *GameService) HandleSignal(ctx context.Context, state *MatchState, userI
 }
 
 func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchState, userID string) (string, error) {
+	s.logger.Info("Handling rematch request for user %s", userID)
 	if !state.GameOver {
+		s.logger.Warn("Rematch rejected: Game not over")
 		return "", fmt.Errorf("game is still in progress")
 	}
 
@@ -289,25 +291,37 @@ func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchStat
 		state.RematchRequests = make(map[string]bool)
 	}
 	state.RematchRequests[userID] = true
+	s.logger.Info("Player %s requested rematch. Total requests: %d", userID, len(state.RematchRequests))
 
 	// Check if all connected players have requested
 	connectedCount := 0
+	requestsCount := 0
 	for _, p := range state.Players {
 		if p.IsConnected {
 			connectedCount++
-			if !state.RematchRequests[p.UserID] {
-				// Not everyone has requested yet
-				s.broadcastState(state, OpCodeState)
-				return "rematch_requested", nil
+			if state.RematchRequests[p.UserID] {
+				requestsCount++
 			}
 		}
 	}
 
+	s.logger.Info("Rematch status: %d/%d connected players requested", requestsCount, connectedCount)
+
+	if requestsCount < connectedCount {
+		// Not everyone has requested yet
+		s.logger.Info("Waiting for other players to request rematch")
+		s.broadcastState(state, OpCodeState)
+		return "rematch_requested", nil
+	}
+
 	if connectedCount < 2 {
+		s.logger.Info("Not enough players for rematch (only %d connected)", connectedCount)
 		// Broadcast state so the client knows their request was registered
 		s.broadcastState(state, OpCodeState)
 		return "waiting_for_players", nil
 	}
+
+	s.logger.Info("All players requested rematch! Resetting game...")
 
 	// Reset game state but keep players
 	state.Board = [BoardSize]string{}
@@ -325,6 +339,7 @@ func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchStat
 		}
 	}
 
+	s.logger.Info("Game reset. New start player: %s", state.CurrentTurnID)
 	s.broadcastState(state, OpCodeState)
 	return "rematch_accepted", nil
 }
