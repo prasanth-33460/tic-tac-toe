@@ -135,17 +135,12 @@ func RPCCreateQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB,
 }
 
 func MatchmakerMatched(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, entries []runtime.MatchmakerEntry) (string, error) {
-	if len(entries) != 2 {
-		logger.Error("❌ Invalid number of players matched: %d", len(entries))
-		return "", fmt.Errorf("invalid player count")
-	}
+	logger.Info("Matchmaker matched %d players", len(entries))
 
 	mode := "classic"
-	if props := entries[0].GetProperties(); props != nil {
-		if modeVal, ok := props["mode"]; ok {
-			if modeStr, ok := modeVal.(string); ok {
-				mode = modeStr
-			}
+	if len(entries) > 0 {
+		if m, ok := entries[0].GetProperties()["mode"].(string); ok {
+			mode = m
 		}
 	}
 
