@@ -44,16 +44,27 @@ class NakamaService {
     String? displayName,
   }) async {
     try {
-      _session = await _client.authenticateDevice(
-        deviceId: deviceId,
-        create: true,
-        username: displayName ?? deviceId,
-      );
-
-      print(
-        '✅ Authenticated: ${_session?.userId} with display name: ${displayName ?? deviceId}',
-      );
-      return _session != null;
+      // Try to authenticate without creating first (Login)
+      try {
+        _session = await _client.authenticateDevice(
+          deviceId: deviceId,
+          create: false, // Login only
+        );
+        print('✅ Logged in: ${_session?.userId}');
+        return _session != null;
+      } catch (e) {
+        // If login fails, try to create (Register)
+        print('⚠️ Login failed, trying to register...');
+        _session = await _client.authenticateDevice(
+          deviceId: deviceId,
+          create: true,
+          username: displayName ?? deviceId,
+        );
+        print(
+          '✅ Registered: ${_session?.userId} with display name: ${displayName ?? deviceId}',
+        );
+        return _session != null;
+      }
     } catch (e) {
       print('❌ Auth failed: $e');
       return false;

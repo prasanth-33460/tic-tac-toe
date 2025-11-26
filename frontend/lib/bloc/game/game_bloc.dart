@@ -236,25 +236,42 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   /// Handle make move event
   /// Thought: "User tapped a cell, send move to server"
   Future<void> _onMakeMove(MakeMoveEvent event, Emitter<GameState> emit) async {
+    debugPrint('🎯 Handling MakeMoveEvent at position: ${event.position}');
+    debugPrint('Current State Type: ${state.runtimeType}');
+
     // Only allow moves if it's our turn
-    if (state is! GamePlaying) return;
+    if (state is! GamePlaying) {
+      debugPrint('❌ Cannot make move: Game not in playing state. Current state: $state');
+      return;
+    }
 
     final currentState = state as GamePlaying;
-    if (!currentState.isMyTurn) return;
+    debugPrint('Current Turn ID: ${currentState.gameState.currentTurnId}');
+    debugPrint('My Symbol: ${currentState.mySymbol}');
+    debugPrint('Is My Turn: ${currentState.isMyTurn}');
+    
+    if (!currentState.isMyTurn) {
+      debugPrint('❌ Cannot make move: Not my turn');
+      return;
+    }
 
     // Validate move locally first
     if (!GameService.isValidMove(
       currentState.gameState.board,
       event.position,
     )) {
+      debugPrint('❌ Invalid move at position ${event.position}. Board: ${currentState.gameState.board}');
       return;
     }
 
     try {
+      debugPrint('🚀 Sending move to server: ${event.position}');
       // Send move to server
       await nakamaService.sendMove(event.position);
+      debugPrint('✅ Move sent successfully');
       // Server will send back updated state
     } catch (e) {
+      debugPrint('💥 Error sending move: $e');
       emit(GameError('Failed to send move: $e'));
     }
   }
@@ -262,11 +279,15 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   /// Handle game state update from server
   /// Thought: "Server sent new game state, update UI"
   void _onGameStateUpdate(GameStateUpdateEvent event, Emitter<GameState> emit) {
+    debugPrint('🔄 Processing GameStateUpdateEvent');
     try {
+      debugPrint('Raw State Data: ${event.stateData}');
       final gameState = GameStateModel.fromJson(event.stateData);
+      debugPrint('Parsed GameState: $gameState');
 
       // Check if game is over
       if (gameState.gameOver) {
+        debugPrint('🏁 Game Over detected. Winner: ${gameState.winnerId}');
         final didIWin = gameState.winnerId == userId;
 
         emit(
@@ -282,19 +303,34 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       }
 
       // Get my symbol directly from the players data
-      _mySymbol ??= gameState.getSymbolForUser(userId);
+      // Robustness: Check if userId matches, if not try nakamaService.userId
+      var effectiveUserId = userId;
+      debugPrint('Checking symbol for userId: $userId');
+      var symbol = gameState.getSymbolForUser(effectiveUserId);
+      
+      if (symbol == null && nakamaService.userId != null) {
+        debugPrint('⚠️ userId $userId not found in players, trying nakamaService.userId: ${nakamaService.userId}');
+        effectiveUserId = nakamaService.userId!;
+        symbol = gameState.getSymbolForUser(effectiveUserId);
+      }
+
+      _mySymbol ??= symbol;
+      debugPrint('Resolved Symbol: $_mySymbol');
 
       if (_mySymbol == null) {
-        debugPrint('❌ Could not determine player symbol for user: $userId');
+        debugPrint('❌ Could not determine player symbol for user: $userId (or $effectiveUserId)');
+        debugPrint('Players: ${gameState.players}');
         emit(const GameError('Could not determine player symbol'));
         return;
       }
 
       debugPrint(
-        '✅ My symbol: $_mySymbol, isMyTurn: ${gameState.currentTurnId == userId}',
+        '✅ My symbol: $_mySymbol, isMyTurn: ${gameState.currentTurnId == effectiveUserId}',
       );
+      debugPrint('Current Turn ID: ${gameState.currentTurnId}, My ID: $effectiveUserId');
 
-      final isMyTurn = gameState.currentTurnId == userId;
+      final isMyTurn = gameState.currentTurnId == effectiveUserId;
+      debugPrint('Calculated isMyTurn: $isMyTurn');
 
       emit(
         GamePlaying(
@@ -304,7 +340,10 @@ class GameBloc extends Bloc<GameEvent, GameState> {
           mySymbol: _mySymbol!,
         ),
       );
-    } catch (e) {
+      debugPrint('✅ Emitted GamePlaying state');
+    } catch (e, stack) {
+      debugPrint('💥 Error processing game state: $e');
+      debugPrint('Stack trace: $stack');
       emit(GameError('Error processing game state: $e'));
     }
   }

@@ -65,7 +65,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await nakamaService.connectSocket();
 
         // Step 5: Emit success state
-        emit(AuthSuccess(userId: deviceId, username: event.username));
+        // Fix: Emit the actual Nakama User ID (UUID), not the device ID
+        final userId = nakamaService.userId;
+        if (userId != null) {
+          emit(AuthSuccess(userId: userId, username: event.username));
+        } else {
+          emit(const AuthError('Failed to get user ID after authentication'));
+        }
       } else {
         // Authentication failed
         emit(const AuthError('Authentication failed. Please try again.'));

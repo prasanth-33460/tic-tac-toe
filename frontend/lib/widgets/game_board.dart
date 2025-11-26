@@ -35,9 +35,13 @@ class GameBoard extends StatelessWidget {
           itemBuilder: (context, index) {
             return _GameCell(
               value: board[index],
-              onTap: enabled && board[index].isEmpty
-                  ? () => onCellTap(index)
-                  : null,
+              onTap: () {
+                if (enabled && board[index].isEmpty) {
+                  onCellTap(index);
+                } else {
+                  debugPrint('🚫 Cell tap ignored. Enabled: $enabled, IsEmpty: ${board[index].isEmpty}');
+                }
+              },
             );
           },
         ),
