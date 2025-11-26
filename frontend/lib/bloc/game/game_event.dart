@@ -87,3 +87,23 @@ class RematchEvent extends GameEvent {
 class LeaveMatchEvent extends GameEvent {
   const LeaveMatchEvent();
 }
+
+/// User wants to find a match (auto matchmaking)
+class FindMatchEvent extends GameEvent {
+  const FindMatchEvent(this.mode);
+
+  final String mode;
+
+  @override
+  List<Object?> get props => [mode];
+}
+
+/// Matchmaker found a match
+class MatchFoundEvent extends GameEvent {
+  final String matchId;
+
+  const MatchFoundEvent(this.matchId);
+
+  @override
+  List<Object> get props => [matchId];
+}

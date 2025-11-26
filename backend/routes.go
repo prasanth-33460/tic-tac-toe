@@ -22,6 +22,10 @@ func RegisterRoutes(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 }
 
 func registerMatchHandler(initializer runtime.Initializer) error {
+	if err := initializer.RegisterMatchmakerMatched(rpc.MatchmakerMatched); err != nil {
+		return err
+	}
+
 	return initializer.RegisterMatch("tictactoe", func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error) {
 		return &match.Match{}, nil
 	})

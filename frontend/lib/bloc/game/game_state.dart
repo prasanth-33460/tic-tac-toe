@@ -106,3 +106,13 @@ class GameError extends GameState {
   @override
   List<Object> get props => [message];
 }
+
+/// Searching state - waiting for matchmaker
+class GameSearching extends GameState {
+  final String mode;
+
+  const GameSearching({required this.mode});
+
+  @override
+  List<Object> get props => [mode];
+}

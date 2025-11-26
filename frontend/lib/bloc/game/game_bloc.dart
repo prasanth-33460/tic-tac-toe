@@ -17,6 +17,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   String? _currentMatchId;
   String? _mySymbol;
   StreamSubscription<Map<String, dynamic>>? _matchStateSubscription;
+  StreamSubscription? _matchmakerSubscription;
 
   GameBloc({
     required this.nakamaService,
@@ -26,8 +27,10 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     debugPrint('🎮 GameBloc initialized for user: $userId');
     // Register event handlers
     on<CreateMatchEvent>(_onCreateMatch);
+    on<FindMatchEvent>(_onFindMatch);
     on<JoinMatchEvent>(_onJoinMatch);
     on<MatchJoinedEvent>(_onMatchJoined);
+    on<MatchFoundEvent>(_onMatchFound);
     on<MakeMoveEvent>(_onMakeMove);
     on<GameStateUpdateEvent>(_onGameStateUpdate);
     on<GameEndedEvent>(_onGameEnded);
@@ -47,6 +50,14 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       debugPrint('📨 Received match state update: ${data.keys.join(", ")}');
       add(GameStateUpdateEvent(data));
     });
+
+    _matchmakerSubscription = nakamaService.matchmakerMatchedStream.listen((
+      event,
+    ) {
+      debugPrint('🎯 Matchmaker matched: ${event.matchId}');
+      add(MatchFoundEvent(event.matchId!));
+    });
+
     debugPrint('✅ Match state subscription active');
   }
 
@@ -85,6 +96,43 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     } catch (e) {
       debugPrint('💥 Error creating match: $e');
       emit(GameError('Error creating match: $e'));
+    }
+  }
+
+  /// Handle find match event (auto matchmaking)
+  Future<void> _onFindMatch(
+    FindMatchEvent event,
+    Emitter<GameState> emit,
+  ) async {
+    debugPrint('🎯 Handling FindMatchEvent with mode: ${event.mode}');
+    emit(GameSearching(mode: event.mode));
+
+    try {
+      await nakamaService.startMatchmaking(mode: event.mode);
+      debugPrint('✅ Started matchmaking');
+    } catch (e) {
+      debugPrint('💥 Error starting matchmaking: $e');
+      emit(GameError('Error starting matchmaking: $e'));
+    }
+  }
+
+  /// Handle match found event
+  Future<void> _onMatchFound(
+    MatchFoundEvent event,
+    Emitter<GameState> emit,
+  ) async {
+    debugPrint('🎯 Handling MatchFoundEvent: ${event.matchId}');
+    _currentMatchId = event.matchId;
+
+    try {
+      // Join the match via WebSocket
+      await nakamaService.joinMatch(event.matchId);
+      debugPrint('🔗 Joined match via WebSocket');
+
+      emit(const GameLoading(message: 'Match found! Joining...'));
+    } catch (e) {
+      debugPrint('💥 Error joining found match: $e');
+      emit(GameError('Error joining match: $e'));
     }
   }
 
@@ -252,6 +300,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     Emitter<GameState> emit,
   ) async {
     try {
+      if (state is GameSearching) {
+        await nakamaService.cancelMatchmaking();
+      }
       await nakamaService.leaveMatch();
       _currentMatchId = null;
       _mySymbol = null;
@@ -265,6 +316,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   Future<void> close() {
     debugPrint('🧹 GameBloc closing - cleaning up resources');
     _matchStateSubscription?.cancel();
+    _matchmakerSubscription?.cancel();
     debugPrint('✅ Match state subscription cancelled');
     return super.close();
   }

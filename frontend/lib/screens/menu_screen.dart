@@ -80,7 +80,27 @@ class _MenuContentState extends State<MenuContent> {
 
                   // Game Mode Section Header
                   const Text(
-                    'Create New Match',
+                    'Play Online',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Find Match Button
+                  _MenuButton(
+                    text: 'Find Match',
+                    subtitle: 'Auto-match with random player',
+                    icon: Icons.search,
+                    onPressed: () => _findMatch(context, 'classic'),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Create Match Section
+                  const Text(
+                    'Create Private Match',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -95,6 +115,7 @@ class _MenuContentState extends State<MenuContent> {
                     subtitle: 'Create match & share ID',
                     icon: Icons.add_circle,
                     onPressed: () => _createMatch(context, 'classic'),
+                    isPrimary: false,
                   ),
                   const SizedBox(height: 16),
 
@@ -252,6 +273,18 @@ class _MenuContentState extends State<MenuContent> {
       ),
     );
     debugPrint('🧭 Navigated to MatchmakingScreen for join');
+  }
+
+  void _findMatch(BuildContext context, String mode) {
+    context.read<GameBloc>().add(FindMatchEvent(mode));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<GameBloc>(),
+          child: MatchmakingScreen(mode: mode),
+        ),
+      ),
+    );
   }
 
   /// Show leaderboard screen

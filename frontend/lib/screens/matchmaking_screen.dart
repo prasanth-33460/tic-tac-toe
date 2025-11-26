@@ -40,6 +40,8 @@ class MatchmakingScreen extends StatelessWidget {
       },
       builder: (context, state) {
         String displayCode = '';
+        bool isSearching = false;
+
         if (state is GameMatchCreated) {
           displayCode = state.shortCode.isNotEmpty
               ? state.shortCode
@@ -48,7 +50,10 @@ class MatchmakingScreen extends StatelessWidget {
           displayCode = state.shortCode.isNotEmpty
               ? state.shortCode
               : state.matchId;
+        } else if (state is GameSearching) {
+          isSearching = true;
         }
+
         final modeDisplay = mode == 'classic' ? 'Classic' : 'Timed';
 
         return WillPopScope(
@@ -90,10 +95,12 @@ class MatchmakingScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 40),
 
-                    // "Match Created!" text
-                    const Text(
-                      'Match Created!',
-                      style: TextStyle(
+                    // Status text
+                    Text(
+                      isSearching
+                          ? 'Searching for opponent...'
+                          : 'Match Created!',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF00D4FF),
@@ -102,11 +109,12 @@ class MatchmakingScreen extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Instructions
-                    const Text(
-                      'Share this Match ID with a friend to start playing:',
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
+                    if (!isSearching)
+                      const Text(
+                        'Share this Match ID with a friend to start playing:',
+                        style: TextStyle(fontSize: 16, color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
                     const SizedBox(height: 16),
 
                     // Match ID display - more prominent

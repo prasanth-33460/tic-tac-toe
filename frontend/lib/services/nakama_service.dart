@@ -20,6 +20,12 @@ class NakamaService {
   Stream<Map<String, dynamic>> get matchStateStream =>
       _matchStateController.stream;
 
+  final StreamController<MatchmakerMatched> _matchmakerMatchedController =
+      StreamController<MatchmakerMatched>.broadcast();
+
+  Stream<MatchmakerMatched> get matchmakerMatchedStream =>
+      _matchmakerMatchedController.stream;
+
   NakamaService() {
     _initializeClient();
   }
@@ -78,6 +84,11 @@ class NakamaService {
         );
       });
 
+      socket.onMatchmakerMatched.listen((event) {
+        print('✅ Matchmaker matched: ${event.matchId}');
+        _matchmakerMatchedController.add(event);
+      });
+
       // ✅ WAIT FOR BACKEND TO BE FULLY READY
       print('⏳ Waiting for backend to initialize...');
       await Future.delayed(const Duration(seconds: 2));
@@ -86,6 +97,40 @@ class NakamaService {
     } catch (e) {
       print('❌ Socket connection failed: $e');
       rethrow;
+    }
+  }
+
+  String? _matchmakerTicket;
+
+  Future<void> startMatchmaking({String mode = 'classic'}) async {
+    if (_session == null) return;
+
+    try {
+      final socket = NakamaWebsocketClient.instance;
+      final ticket = await socket.addMatchmaker(
+        minCount: 2,
+        maxCount: 2,
+        query: '*',
+        stringProperties: {'mode': mode},
+      );
+      _matchmakerTicket = ticket.ticket;
+      print('✅ Added to matchmaker (mode: $mode), ticket: $_matchmakerTicket');
+    } catch (e) {
+      print('❌ Failed to add to matchmaker: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> cancelMatchmaking() async {
+    if (_session == null || _matchmakerTicket == null) return;
+
+    try {
+      final socket = NakamaWebsocketClient.instance;
+      await socket.removeMatchmaker(_matchmakerTicket!);
+      print('✅ Removed from matchmaker: $_matchmakerTicket');
+      _matchmakerTicket = null;
+    } catch (e) {
+      print('❌ Failed to remove from matchmaker: $e');
     }
   }
 
@@ -158,7 +203,6 @@ class NakamaService {
   Future<MatchModel?> findMatch({String mode = 'classic'}) async {
     if (_session == null) return null;
 
-    // ✅ RETRY LOGIC: Try up to 3 times with exponential backoff
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         print('🔄 Attempt $attempt to find match with mode: $mode...');
