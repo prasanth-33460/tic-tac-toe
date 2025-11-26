@@ -213,7 +213,9 @@ class _GameScreenState extends State<GameScreen> {
                           debugPrint('✅ It is my turn, sending move...');
                           context.read<GameBloc>().add(MakeMoveEvent(index));
                         } else {
-                          debugPrint('❌ Not my turn. My Symbol: ${state.mySymbol}, Current Turn ID: ${state.gameState.currentTurnId}');
+                          debugPrint(
+                            '❌ Not my turn. My Symbol: ${state.mySymbol}, Current Turn ID: ${state.gameState.currentTurnId}',
+                          );
                         }
                       },
                       enabled: state.isMyTurn,

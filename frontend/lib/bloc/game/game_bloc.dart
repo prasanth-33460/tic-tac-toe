@@ -241,7 +241,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
 
     // Only allow moves if it's our turn
     if (state is! GamePlaying) {
-      debugPrint('❌ Cannot make move: Game not in playing state. Current state: $state');
+      debugPrint(
+        '❌ Cannot make move: Game not in playing state. Current state: $state',
+      );
       return;
     }
 
@@ -249,7 +251,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     debugPrint('Current Turn ID: ${currentState.gameState.currentTurnId}');
     debugPrint('My Symbol: ${currentState.mySymbol}');
     debugPrint('Is My Turn: ${currentState.isMyTurn}');
-    
+
     if (!currentState.isMyTurn) {
       debugPrint('❌ Cannot make move: Not my turn');
       return;
@@ -260,7 +262,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       currentState.gameState.board,
       event.position,
     )) {
-      debugPrint('❌ Invalid move at position ${event.position}. Board: ${currentState.gameState.board}');
+      debugPrint(
+        '❌ Invalid move at position ${event.position}. Board: ${currentState.gameState.board}',
+      );
       return;
     }
 
@@ -307,9 +311,11 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       var effectiveUserId = userId;
       debugPrint('Checking symbol for userId: $userId');
       var symbol = gameState.getSymbolForUser(effectiveUserId);
-      
+
       if (symbol == null && nakamaService.userId != null) {
-        debugPrint('⚠️ userId $userId not found in players, trying nakamaService.userId: ${nakamaService.userId}');
+        debugPrint(
+          '⚠️ userId $userId not found in players, trying nakamaService.userId: ${nakamaService.userId}',
+        );
         effectiveUserId = nakamaService.userId!;
         symbol = gameState.getSymbolForUser(effectiveUserId);
       }
@@ -318,7 +324,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       debugPrint('Resolved Symbol: $_mySymbol');
 
       if (_mySymbol == null) {
-        debugPrint('❌ Could not determine player symbol for user: $userId (or $effectiveUserId)');
+        debugPrint(
+          '❌ Could not determine player symbol for user: $userId (or $effectiveUserId)',
+        );
         debugPrint('Players: ${gameState.players}');
         emit(const GameError('Could not determine player symbol'));
         return;
@@ -327,7 +335,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       debugPrint(
         '✅ My symbol: $_mySymbol, isMyTurn: ${gameState.currentTurnId == effectiveUserId}',
       );
-      debugPrint('Current Turn ID: ${gameState.currentTurnId}, My ID: $effectiveUserId');
+      debugPrint(
+        'Current Turn ID: ${gameState.currentTurnId}, My ID: $effectiveUserId',
+      );
 
       final isMyTurn = gameState.currentTurnId == effectiveUserId;
       debugPrint('Calculated isMyTurn: $isMyTurn');

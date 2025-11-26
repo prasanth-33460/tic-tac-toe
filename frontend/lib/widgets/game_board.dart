@@ -39,7 +39,9 @@ class GameBoard extends StatelessWidget {
                 if (enabled && board[index].isEmpty) {
                   onCellTap(index);
                 } else {
-                  debugPrint('🚫 Cell tap ignored. Enabled: $enabled, IsEmpty: ${board[index].isEmpty}');
+                  debugPrint(
+                    '🚫 Cell tap ignored. Enabled: $enabled, IsEmpty: ${board[index].isEmpty}',
+                  );
                 }
               },
             );
