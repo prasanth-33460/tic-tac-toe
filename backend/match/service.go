@@ -301,6 +301,8 @@ func (s *GameService) handleRematchRequest(ctx context.Context, state *MatchStat
 	}
 
 	if connectedCount < 2 {
+		// Broadcast state so the client knows their request was registered
+		s.broadcastState(state, OpCodeState)
 		return "waiting_for_players", nil
 	}
 

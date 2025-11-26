@@ -106,7 +106,12 @@ class NakamaService {
     if (_session == null) return;
 
     if (_matchmakerTicket != null) {
-      await cancelMatchmaking();
+      try {
+        await cancelMatchmaking();
+      } catch (e) {
+        print('⚠️ Failed to cancel previous matchmaking ticket: $e');
+        // Continue anyway to try creating a new ticket
+      }
     }
 
     try {
