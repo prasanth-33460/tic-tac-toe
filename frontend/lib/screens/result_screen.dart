@@ -32,109 +32,107 @@ class ResultScreen extends StatelessWidget {
                 Text(
                   isDraw ? '=' : (didIWin ? '✓' : 'X'),
                   style: TextStyle(
-                      fontSize: 100,
-                      fontWeight: FontWeight.bold,
-                      color: _getResultColor(),
+                    fontSize: 100,
+                    fontWeight: FontWeight.bold,
+                    color: _getResultColor(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Result text
+                Text(
+                  _getResultText(),
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: _getResultColor(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Points earned
+                Text(
+                  _getPointsText(),
+                  style: const TextStyle(fontSize: 20, color: Colors.white),
+                ),
+                const SizedBox(height: 60),
+
+                // Stats container (matches sample)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1F27),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF00D4FF),
+                      width: 2,
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Result text
-                  Text(
-                    _getResultText(),
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: _getResultColor(),
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _StatItem(
+                        label: 'W/L/D',
+                        value: didIWin ? '1/0/0' : (isDraw ? '0/0/1' : '0/1/0'),
+                      ),
+                      _StatItem(label: 'Streak', value: didIWin ? '1' : '0'),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                ),
+                const SizedBox(height: 60),
 
-                  // Points earned
-                  Text(
-                    _getPointsText(),
-                    style: const TextStyle(fontSize: 20, color: Colors.white),
-                  ),
-                  const SizedBox(height: 60),
-
-                  // Stats container (matches sample)
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1F27),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF00D4FF),
-                        width: 2,
+                // Play Again button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => _playAgain(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00D4FF),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _StatItem(
-                          label: 'W/L/D',
-                          value: didIWin
-                              ? '1/0/0'
-                              : (isDraw ? '0/0/1' : '0/1/0'),
-                        ),
-                        _StatItem(label: 'Streak', value: didIWin ? '1' : '0'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 60),
-
-                  // Play Again button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () => _playAgain(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D4FF),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Play Again',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    child: const Text(
+                      'Play Again',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 16),
 
-                  // Back to Menu button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () => _backToMenu(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A1F27),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                // Back to Menu button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => _backToMenu(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A1F27),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Back to Menu',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                    child: const Text(
+                      'Back to Menu',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 
   Color _getResultColor() {

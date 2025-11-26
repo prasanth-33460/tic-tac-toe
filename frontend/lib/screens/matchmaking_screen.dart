@@ -54,11 +54,13 @@ class MatchmakingScreen extends StatelessWidget {
     bool isSearching = false;
 
     if (state is GameMatchCreated) {
-      displayCode =
-          state.shortCode.isNotEmpty ? state.shortCode : state.matchId;
+      displayCode = state.shortCode.isNotEmpty
+          ? state.shortCode
+          : state.matchId;
     } else if (state is GameMatchmaking) {
-      displayCode =
-          state.shortCode.isNotEmpty ? state.shortCode : state.matchId;
+      displayCode = state.shortCode.isNotEmpty
+          ? state.shortCode
+          : state.matchId;
     } else if (state is GameSearching) {
       isSearching = true;
     }
