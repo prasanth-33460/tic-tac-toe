@@ -426,10 +426,12 @@ class NakamaService {
       try {
         final socket = NakamaWebsocketClient.instance;
         await socket.leaveMatch(_currentMatchId!);
-        _currentMatchId = null;
         print('✅ Left match');
       } catch (e) {
         print('❌ Leave match failed: $e');
+      } finally {
+        // Always clear current match ID
+        _currentMatchId = null;
       }
     }
   }

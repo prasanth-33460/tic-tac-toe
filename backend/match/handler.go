@@ -96,6 +96,13 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 		m.service = NewGameService(logger, db, nk, dispatcher)
 	}
 
+	if len(messages) > 0 {
+		logger.Info("MatchLoop received %d messages", len(messages))
+		for _, msg := range messages {
+			logger.Info("Message OpCode: %d, UserID: %s", msg.GetOpCode(), msg.GetUserId())
+		}
+	}
+
 	// Handle timeout in timed mode
 	if gameState.Mode == ModeTimed && !gameState.GameOver && len(gameState.Players) == MaxPlayers {
 		if gameState.IsTimedOut() {
