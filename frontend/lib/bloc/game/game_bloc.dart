@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nakama/nakama.dart';
@@ -55,8 +56,36 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     _matchmakerSubscription = nakamaService.matchmakerMatchedStream.listen((
       event,
     ) {
-      debugPrint('🎯 Matchmaker matched: ${event.matchId}');
-      add(MatchFoundEvent(event.matchId!));
+      debugPrint('🎯 Matchmaker matched event received');
+      
+      String? matchId = event.matchId;
+      
+      // Fallback: Extract match ID from token if matchId is null
+      if (matchId == null && event.token != null) {
+        debugPrint('⚠️ matchId is null, attempting to extract from token');
+        try {
+          final parts = event.token!.split('.');
+          if (parts.length == 3) {
+            final payload = parts[1];
+            final normalized = base64Url.normalize(payload);
+            final resp = utf8.decode(base64Url.decode(normalized));
+            final payloadMap = json.decode(resp);
+            if (payloadMap['mid'] != null) {
+              matchId = payloadMap['mid'];
+              debugPrint('✅ Extracted matchId from token: $matchId');
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error decoding token: $e');
+        }
+      }
+
+      if (matchId != null) {
+        debugPrint('🎯 Match found: $matchId');
+        add(MatchFoundEvent(matchId));
+      } else {
+        debugPrint('❌ Failed to get match ID from matchmaker event');
+      }
     });
 
     debugPrint('✅ Match state subscription active');

@@ -244,6 +244,9 @@ func (s *GameService) HandlePlayerLeave(ctx context.Context, state *MatchState, 
 			}
 
 			s.broadcastState(state, OpCodeGameEnd)
+		} else {
+			// Notify that player disconnected
+			s.broadcastState(state, OpCodeState)
 		}
 	}
 }
