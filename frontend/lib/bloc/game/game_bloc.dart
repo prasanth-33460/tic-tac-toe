@@ -60,9 +60,11 @@ class GameBloc extends Bloc<GameEvent, GameState> {
 
       String? matchId = event.matchId;
 
-      // Fallback: Extract match ID from token if matchId is null
-      if (matchId == null && event.token != null) {
-        debugPrint('⚠️ matchId is null, attempting to extract from token');
+      // Fallback: Extract match ID from token if matchId is null or empty
+      if ((matchId == null || matchId.isEmpty) && event.token != null) {
+        debugPrint(
+          '⚠️ matchId is null or empty, attempting to extract from token',
+        );
         try {
           final parts = event.token!.split('.');
           if (parts.length == 3) {
@@ -81,7 +83,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
         }
       }
 
-      if (matchId != null) {
+      if (matchId != null && matchId.isNotEmpty) {
         debugPrint('🎯 Match found: $matchId');
         add(MatchFoundEvent(matchId));
       } else {

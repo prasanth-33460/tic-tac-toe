@@ -34,8 +34,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // Step 2: Generate device ID from username
       // Thought: "Use username as device ID for simplicity"
-      final deviceId =
-          'device_${safeUsername}_${DateTime.now().millisecondsSinceEpoch}';
+      // We use a fixed prefix + username to ensure uniqueness per user,
+      // but we don't want to create a new account every time.
+      // However, Nakama's authenticateDevice with create: true will try to create a user.
+      // If we pass 'username', it tries to set that username. If it exists, it fails.
+      // To allow login with existing username, we should NOT pass username if we are just logging in.
+      // But we don't know if the user exists.
+
+      // Strategy: Try to authenticate WITHOUT username first (login).
+      // If that fails (account doesn't exist), try to authenticate WITH username (register).
+      // But wait, device ID is the key.
+      // If we use a random device ID every time (like with timestamp), we are creating a NEW account every time.
+      // That's why we get duplicate username error - we are creating a NEW user (new ID) but trying to assign an EXISTING username.
+
+      // Fix: Use a consistent device ID for the username.
+      // If the user enters "prasanth", the device ID should be "device_prasanth".
+      // This way, if "device_prasanth" exists, it logs in.
+      // If it doesn't exist, it creates it with username "prasanth".
+
+      final deviceId = 'device_$safeUsername';
 
       // Step 3: Authenticate with Nakama
       final success = await nakamaService.authenticateDevice(

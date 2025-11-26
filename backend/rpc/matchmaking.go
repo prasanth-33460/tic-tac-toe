@@ -43,6 +43,11 @@ func RPCFindMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		return "", fmt.Errorf("match creation failed")
 	}
 
+	// Fix: Strip trailing dot if present (Nakama single node issue)
+	if len(matchID) > 0 && matchID[len(matchID)-1] == '.' {
+		matchID = matchID[:len(matchID)-1]
+	}
+
 	shortCode := generateShortCode(nk, ctx, logger)
 	if shortCode == "" {
 		return "", fmt.Errorf("failed to generate short code")
@@ -108,6 +113,11 @@ func RPCCreateQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB,
 		return "", fmt.Errorf("match creation failed")
 	}
 
+	// Fix: Strip trailing dot if present (Nakama single node issue)
+	if len(matchID) > 0 && matchID[len(matchID)-1] == '.' {
+		matchID = matchID[:len(matchID)-1]
+	}
+
 	// ✅ FIXED: Use map[string]interface{} not map[string]string
 	response := map[string]interface{}{
 		"matchId": matchID,
@@ -147,6 +157,11 @@ func MatchmakerMatched(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 	if err != nil {
 		logger.Error("Failed to create match from matchmaker: %v", err)
 		return "", err
+	}
+
+	// Fix: Strip trailing dot if present (Nakama single node issue)
+	if len(matchID) > 0 && matchID[len(matchID)-1] == '.' {
+		matchID = matchID[:len(matchID)-1]
 	}
 
 	logger.Info("Matchmaker created match %s with %d players", matchID, len(entries))
