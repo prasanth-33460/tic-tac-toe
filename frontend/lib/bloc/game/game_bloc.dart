@@ -57,9 +57,9 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       event,
     ) {
       debugPrint('🎯 Matchmaker matched event received');
-      
+
       String? matchId = event.matchId;
-      
+
       // Fallback: Extract match ID from token if matchId is null
       if (matchId == null && event.token != null) {
         debugPrint('⚠️ matchId is null, attempting to extract from token');
@@ -69,9 +69,10 @@ class GameBloc extends Bloc<GameEvent, GameState> {
             final payload = parts[1];
             final normalized = base64Url.normalize(payload);
             final resp = utf8.decode(base64Url.decode(normalized));
-            final payloadMap = json.decode(resp);
-            if (payloadMap['mid'] != null) {
-              matchId = payloadMap['mid'];
+            final payloadMap = json.decode(resp) as Map<String, dynamic>;
+            final mid = payloadMap['mid'];
+            if (mid is String && mid.isNotEmpty) {
+              matchId = mid;
               debugPrint('✅ Extracted matchId from token: $matchId');
             }
           }
