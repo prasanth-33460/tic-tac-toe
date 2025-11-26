@@ -75,6 +75,10 @@ class GameBloc extends Bloc<GameEvent, GameState> {
             final mid = payloadMap['mid'];
             if (mid is String && mid.isNotEmpty) {
               matchId = mid;
+              // Fix: Strip trailing dot if present
+              if (matchId.endsWith('.')) {
+                matchId = matchId.substring(0, matchId.length - 1);
+              }
               debugPrint('✅ Extracted matchId from token: $matchId');
             }
           }
@@ -84,6 +88,10 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       }
 
       if (matchId != null && matchId.isNotEmpty) {
+        // Ensure no trailing dot
+        if (matchId.endsWith('.')) {
+          matchId = matchId.substring(0, matchId.length - 1);
+        }
         debugPrint('🎯 Match found: $matchId');
         add(MatchFoundEvent(matchId));
       } else {

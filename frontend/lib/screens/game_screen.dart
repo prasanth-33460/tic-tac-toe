@@ -7,7 +7,6 @@ import '../bloc/game/game_state.dart';
 import '../models/game_state_model.dart';
 import '../widgets/game_board.dart';
 import '../widgets/player_card.dart';
-import 'result_screen.dart';
 
 /// Game Screen - Active gameplay
 /// Thought: "Main game screen with board and player info"
@@ -93,22 +92,6 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<GameBloc, GameState>(
       listener: (context, state) {
-        // Navigate to result screen when game ends
-        if (state is GameOver) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<GameBloc>(),
-                child: ResultScreen(
-                  winnerId: state.winnerId,
-                  isDraw: state.isDraw,
-                  didIWin: state.didIWin,
-                ),
-              ),
-            ),
-          );
-        }
-
         // Start timer for timed mode when game state changes
         if (state is GamePlaying && state.gameState.mode == 'timed') {
           _startTimer(state.gameState);

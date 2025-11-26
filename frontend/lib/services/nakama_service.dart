@@ -314,6 +314,11 @@ class NakamaService {
 
   Future<void> joinMatch(String matchId) async {
     try {
+      // Fix: Strip trailing dot if present
+      if (matchId.endsWith('.')) {
+        matchId = matchId.substring(0, matchId.length - 1);
+      }
+
       final socket = NakamaWebsocketClient.instance;
       await socket.joinMatch(matchId);
       _currentMatchId = matchId;

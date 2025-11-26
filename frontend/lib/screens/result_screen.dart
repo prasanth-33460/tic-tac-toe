@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/game/game_bloc.dart';
 import '../bloc/game/game_event.dart';
-import '../bloc/game/game_state.dart';
-import 'game_screen.dart';
 
 /// Result Screen - Game over, show winner
 /// Thought: "Victory/defeat screen with stats and play again option"
@@ -21,33 +19,19 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<GameBloc, GameState>(
-      listener: (context, state) {
-        if (state is GamePlaying) {
-          // Game restarted! Go back to game screen
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<GameBloc>(),
-                child: const GameScreen(),
-              ),
-            ),
-          );
-        }
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F1419),
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Result symbol (X or winner symbol)
-                  Text(
-                    isDraw ? '=' : (didIWin ? '✓' : 'X'),
-                    style: TextStyle(
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F1419),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Result symbol (X or winner symbol)
+                Text(
+                  isDraw ? '=' : (didIWin ? '✓' : 'X'),
+                  style: TextStyle(
                       fontSize: 100,
                       fontWeight: FontWeight.bold,
                       color: _getResultColor(),
@@ -150,8 +134,7 @@ class ResultScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Color _getResultColor() {
