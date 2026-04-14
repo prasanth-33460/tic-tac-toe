@@ -1,29 +1,28 @@
-.PHONY: build clean run rebuild
+.PHONY: build clean run rebuild deps dev logs stop
 
-build:
-	@echo "Building plugin..."
-	@mkdir -p modules
-	@docker run --rm -w "/builder" -v "${PWD}:/builder" \
-		heroiclabs/nakama-pluginbuilder:3.22.0 \
-		build -buildmode=plugin -trimpath -o ./modules/backend.so
-	@echo "✅ Build complete!"
+# Build the plugin inside Docker and start all services.
+run:
+	docker compose up --build
 
+# Start services in background.
+run-detached:
+	docker compose up --build -d
+
+# Stop running services.
+stop:
+	docker compose down
+
+# Stop services and wipe all data (database, volumes).
 clean:
-	@echo "Cleaning up..."
-	@docker-compose down
-	@rm -rf modules/
-	@echo "✅ Cleaned!"
+	docker compose down -v
 
-run: build
-	@echo "Starting Nakama..."
-	@docker-compose up
+# Tail container logs.
+logs:
+	docker compose logs -f nakama
 
-rebuild: clean build
-
+# Update Go dependencies.
 deps:
-	@echo "Updating dependencies..."
-	@go mod tidy
-	@go mod vendor
-	@echo "✅ Dependencies updated!"
+	go mod tidy
 
+# One-command: update deps then start.
 dev: deps run
