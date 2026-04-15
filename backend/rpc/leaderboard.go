@@ -7,52 +7,50 @@ import (
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	dbpkg "github.com/prasanth-33460/tic-tac-toe/backend/db"
+	"github.com/prasanth-33460/tic-tac-toe/backend/match"
 )
 
+// RPCGetLeaderboard returns the top-10 entries from both the global wins
+// and win-streaks leaderboards.
 func RPCGetLeaderboard(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	response := LeaderboardResponse{
 		GlobalWins: []LeaderboardEntry{},
 		WinStreaks: []LeaderboardEntry{},
 	}
 
-	// Ensure leaderboards exist before fetching (create on demand if missing)
 	if err := dbpkg.EnsureLeaderboards(logger, nk); err != nil {
-		logger.Warn("Failed to ensure leaderboards before fetch: %v", err)
+		logger.Warn("Leaderboard ensure failed: %v", err)
 	}
 
 	serverCtx := context.Background()
+	const limit = 10
 
-	winsRecords, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, "global_wins", nil, 10, "", 0)
-	if err != nil {
-		logger.Error("Failed to fetch wins leaderboard: %v", err)
+	if records, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, match.LeaderboardGlobalWins, nil, limit, "", 0); err != nil {
+		logger.Error("Wins leaderboard fetch failed: %v", err)
 	} else {
-		logger.Info("Fetched %d wins leaderboard records", len(winsRecords))
-		for _, record := range winsRecords {
+		for _, r := range records {
 			response.GlobalWins = append(response.GlobalWins, LeaderboardEntry{
-				UserID:   record.GetOwnerId(),
-				Username: record.GetUsername().GetValue(),
-				Score:    record.GetScore(),
-				Rank:     record.GetRank(),
+				UserID:   r.GetOwnerId(),
+				Username: r.GetUsername().GetValue(),
+				Score:    r.GetScore(),
+				Rank:     r.GetRank(),
 			})
 		}
 	}
 
-	streakRecords, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, "win_streaks", nil, 10, "", 0)
-	if err != nil {
-		logger.Error("Failed to fetch streaks leaderboard: %v", err)
+	if records, _, _, _, err := nk.LeaderboardRecordsList(serverCtx, match.LeaderboardWinStreaks, nil, limit, "", 0); err != nil {
+		logger.Error("Streaks leaderboard fetch failed: %v", err)
 	} else {
-		logger.Info("Fetched %d streak leaderboard records", len(streakRecords))
-		for _, record := range streakRecords {
+		for _, r := range records {
 			response.WinStreaks = append(response.WinStreaks, LeaderboardEntry{
-				UserID:   record.GetOwnerId(),
-				Username: record.GetUsername().GetValue(),
-				Score:    record.GetScore(),
-				Rank:     record.GetRank(),
+				UserID:   r.GetOwnerId(),
+				Username: r.GetUsername().GetValue(),
+				Score:    r.GetScore(),
+				Rank:     r.GetRank(),
 			})
 		}
 	}
 
-	logger.Info("Returning leaderboard response with %d wins and %d streaks", len(response.GlobalWins), len(response.WinStreaks))
-	responseJSON, _ := json.Marshal(response)
-	return string(responseJSON), nil
+	b, _ := json.Marshal(response)
+	return string(b), nil
 }
