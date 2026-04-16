@@ -2,25 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/game/game_bloc.dart';
-import '../bloc/game/game_event.dart';
 import '../bloc/game/game_state.dart';
+import '../config/app_theme.dart';
 import 'game_screen.dart';
 
-/// Matchmaking Screen - Waiting for opponent
 class MatchmakingScreen extends StatelessWidget {
-  final String mode; // ✅ NEW: Accept game mode
+  final String mode;
 
-  const MatchmakingScreen({Key? key, required this.mode}) : super(key: key);
+  const MatchmakingScreen({super.key, required this.mode});
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🔍 MatchmakingScreen building for mode: $mode');
+    final isJoining = mode == 'join';
+
     return BlocConsumer<GameBloc, GameState>(
       listener: (context, state) {
-        debugPrint('🎯 MatchmakingScreen state changed: ${state.runtimeType}');
-        // Navigate to game when match starts
         if (state is GamePlaying) {
-          debugPrint('🎮 Game started - navigating to GameScreen');
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
@@ -30,12 +27,12 @@ class MatchmakingScreen extends StatelessWidget {
             ),
           );
         } else if (state is GameError) {
-          debugPrint('❌ Game error: ${state.message}');
-          // Show error and go back
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+            SnackBar(content: Text(state.message), backgroundColor: AppColors.danger),
           );
-          Navigator.of(context).pop();
+          final bloc = context.read<GameBloc>();
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          Future.microtask(() => bloc.close());
         }
       },
       builder: (context, state) {
@@ -44,182 +41,67 @@ class MatchmakingScreen extends StatelessWidget {
           displayCode = state.shortCode.isNotEmpty
               ? state.shortCode
               : state.matchId;
-        } else if (state is GameMatchmaking) {
-          displayCode = state.shortCode.isNotEmpty
-              ? state.shortCode
-              : state.matchId;
         }
-        final modeDisplay = mode == 'classic' ? 'Classic' : 'Timed';
 
-        return WillPopScope(
-          onWillPop: () async {
-            debugPrint('⬅️ Back button pressed - leaving match');
-            // Leave match when back pressed
-            context.read<GameBloc>().add(const LeaveMatchEvent());
-            return true;
-          },
+        String modeDisplay;
+        switch (mode) {
+          case 'classic':
+            modeDisplay = 'Classic';
+            break;
+          case 'timed':
+            modeDisplay = 'Timed';
+            break;
+          default:
+            modeDisplay = 'Joining';
+        }
+
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, _) {},
           child: Scaffold(
-            backgroundColor: const Color(0xFF0F1419),
+            backgroundColor: AppColors.background,
             body: SafeArea(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Mode display
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1F27),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF00D4FF),
-                          width: 2,
-                        ),
-                      ),
-                      child: Text(
-                        modeDisplay,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF00D4FF),
-                        ),
-                      ),
-                    ),
+                    _buildModeBadge(modeDisplay),
                     const SizedBox(height: 40),
 
-                    // "Match Created!" text
-                    const Text(
-                      'Match Created!',
-                      style: TextStyle(
+                    Text(
+                      isJoining ? 'Joining Match...' : 'Match Created!',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF00D4FF),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // Instructions
-                    const Text(
-                      'Share this Match ID with a friend to start playing:',
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                    Text(
+                      isJoining
+                          ? 'Waiting for the game to start...'
+                          : 'Share this Match ID with a friend to start playing:',
+                      style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
 
-                    // Match ID display - more prominent
-                    if (displayCode.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A1F27),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFF00D4FF),
-                            width: 2,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Match Code',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    displayCode,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Color(0xFF00D4FF),
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () async {
-                                    await Clipboard.setData(
-                                      ClipboardData(text: displayCode),
-                                    );
-                                    // Copy to clipboard
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Match ID copied to clipboard!',
-                                          ),
-                                          backgroundColor: Color(0xFF00D4FF),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.copy,
-                                    color: Color(0xFF00D4FF),
-                                  ),
-                                  tooltip: 'Copy Match ID',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                    if (displayCode.isNotEmpty) _buildCodeCard(context, displayCode),
                     const SizedBox(height: 40),
 
-                    // Animated loading indicator with "O"
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 120,
-                          height: 120,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 4,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF00D4FF),
-                            ),
-                          ),
-                        ),
-                        const Text(
-                          'O',
-                          style: TextStyle(
-                            fontSize: 60,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF00D4FF),
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildLoadingSpinner(),
                     const SizedBox(height: 60),
 
-                    // Cancel button
                     TextButton(
                       onPressed: () {
-                        context.read<GameBloc>().add(const LeaveMatchEvent());
-                        Navigator.of(context).pop();
+                        final bloc = context.read<GameBloc>();
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Future.microtask(() => bloc.close());
                       },
                       child: const Text(
                         'Cancel',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF00D4FF),
-                        ),
+                        style: TextStyle(fontSize: 16, color: AppColors.primary),
                       ),
                     ),
                   ],
@@ -229,6 +111,97 @@ class MatchmakingScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildModeBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        border: Border.all(color: AppColors.primary, width: AppSizes.borderWidth),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeCard(BuildContext context, String code) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        border: Border.all(color: AppColors.primary, width: AppSizes.borderWidth),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Match Code',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              IconButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: code));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Match ID copied to clipboard!'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy, color: AppColors.primary),
+                tooltip: 'Copy Match ID',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingSpinner() {
+    return const Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: CircularProgressIndicator(
+            strokeWidth: 4,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+        Text(
+          'O',
+          style: TextStyle(fontSize: 60, fontWeight: FontWeight.bold, color: AppColors.primary),
+        ),
+      ],
     );
   }
 }

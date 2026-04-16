@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../config/app_theme.dart';
 
-/// Countdown Timer Widget
-/// Thought: "For timed mode - show remaining time"
 class CountdownTimer extends StatefulWidget {
   final int durationSeconds;
   final VoidCallback? onTimeout;
 
   const CountdownTimer({
-    Key? key,
+    super.key,
     required this.durationSeconds,
     this.onTimeout,
-  }) : super(key: key);
+  });
 
   @override
   State<CountdownTimer> createState() => _CountdownTimerState();
@@ -31,9 +30,7 @@ class _CountdownTimerState extends State<CountdownTimer> {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
+        setState(() => _remainingSeconds--);
       } else {
         timer.cancel();
         widget.onTimeout?.call();
@@ -49,35 +46,33 @@ class _CountdownTimerState extends State<CountdownTimer> {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = _remainingSeconds / widget.durationSeconds;
-    final color = percentage > 0.3 ? const Color(0xFF00D4FF) : Colors.red;
+    final percentage = widget.durationSeconds > 0
+        ? _remainingSeconds / widget.durationSeconds
+        : 0.0;
+    final color = percentage > 0.3 ? AppColors.primary : AppColors.danger;
 
-    return Column(
-      children: [
-        SizedBox(
-          width: 60,
-          height: 60,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: percentage,
-                strokeWidth: 4,
-                backgroundColor: Colors.grey[800],
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-              Text(
-                '$_remainingSeconds',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
+    return SizedBox(
+      width: 60,
+      height: 60,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: percentage,
+            strokeWidth: 4,
+            backgroundColor: Colors.grey[800],
+            valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
-        ),
-      ],
+          Text(
+            '$_remainingSeconds',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

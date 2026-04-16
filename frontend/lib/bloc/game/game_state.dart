@@ -1,8 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../models/game_state_model.dart';
 
-/// All possible game states
-/// Thought: "Game flow: Idle -> Matchmaking -> Playing -> GameOver"
 abstract class GameState extends Equatable {
   const GameState();
 
@@ -10,14 +8,10 @@ abstract class GameState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Initial state - no game yet
-/// Thought: "User is at menu, no active game"
 class GameInitial extends GameState {
   const GameInitial();
 }
 
-/// Loading state - creating or finding match
-/// Thought: "Show spinner while backend creates match"
 class GameLoading extends GameState {
   final String message;
 
@@ -27,8 +21,6 @@ class GameLoading extends GameState {
   List<Object> get props => [message];
 }
 
-/// Match created state - match created, waiting for opponent to join
-/// Thought: "Match created with ID, show ID for sharing"
 class GameMatchCreated extends GameState {
   final String matchId;
   final String shortCode;
@@ -39,30 +31,11 @@ class GameMatchCreated extends GameState {
   List<Object> get props => [matchId, shortCode];
 }
 
-/// Matchmaking state - waiting for opponent
-/// Thought: "Match created, waiting for second player"
-class GameMatchmaking extends GameState {
-  final String matchId;
-  final String shortCode;
-  final int secondsElapsed;
-
-  const GameMatchmaking({
-    required this.matchId,
-    required this.shortCode,
-    this.secondsElapsed = 0,
-  });
-
-  @override
-  List<Object> get props => [matchId, shortCode, secondsElapsed];
-}
-
-/// Playing state - game is active
-/// Thought: "Both players joined, game in progress"
 class GamePlaying extends GameState {
   final String matchId;
   final GameStateModel gameState;
   final bool isMyTurn;
-  final String mySymbol; // "X" or "O"
+  final String mySymbol;
 
   const GamePlaying({
     required this.matchId,
@@ -75,8 +48,6 @@ class GamePlaying extends GameState {
   List<Object> get props => [matchId, gameState, isMyTurn, mySymbol];
 }
 
-/// Game over state - game finished
-/// Thought: "Show winner, stats, play again option"
 class GameOver extends GameState {
   final String matchId;
   final GameStateModel finalState;
@@ -96,8 +67,6 @@ class GameOver extends GameState {
   List<Object?> get props => [matchId, finalState, winnerId, isDraw, didIWin];
 }
 
-/// Error state - something went wrong
-/// Thought: "Network error, timeout, etc."
 class GameError extends GameState {
   final String message;
 

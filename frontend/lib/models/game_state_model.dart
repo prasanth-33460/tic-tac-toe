@@ -11,10 +11,10 @@ class GameStateModel extends Equatable {
   final String? player1Username;
   final String? player2Username;
   final int moveCount;
-  final Map<String, dynamic>? players; // Store raw players data
-  final String mode; // classic or timed
-  final int turnStartTime; // Unix timestamp when turn started
-  final int turnTimeoutSecs; // Seconds allowed per turn
+  final Map<String, dynamic>? players;
+  final String mode;
+  final int turnStartTime;
+  final int turnTimeoutSecs;
 
   const GameStateModel({
     required this.board,
@@ -33,7 +33,6 @@ class GameStateModel extends Equatable {
     this.turnTimeoutSecs = 0,
   });
 
-  // Get symbol for a specific user
   String? getSymbolForUser(String userId) {
     if (players == null) return null;
 
@@ -41,6 +40,20 @@ class GameStateModel extends Equatable {
       if (playerData is Map<String, dynamic>) {
         if (playerData['user_id'] == userId) {
           return playerData['symbol'] as String?;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Returns the username for the given user ID, or null if not found.
+  String? getUsernameForUser(String userId) {
+    if (players == null) return null;
+
+    for (var playerData in players!.values) {
+      if (playerData is Map<String, dynamic>) {
+        if (playerData['user_id'] == userId) {
+          return playerData['username'] as String?;
         }
       }
     }
@@ -56,49 +69,45 @@ class GameStateModel extends Equatable {
   }
 
   factory GameStateModel.fromJson(Map<String, dynamic> json) {
-    // Parse players to extract player IDs
     String? player1Id;
     String? player2Id;
     String? player1Username;
     String? player2Username;
 
-    if (json['players'] != null) {
-      if (json['players'] is Map<String, dynamic>) {
-        // Players as map
-        final players = json['players'] as Map<String, dynamic>;
-        for (final playerData in players.values) {
-          if (playerData is Map<String, dynamic>) {
-            final symbol = playerData['symbol'] as String?;
-            final userId = playerData['user_id'] as String?;
-            final username = playerData['username'] as String?;
+    // Normalize players into a list of maps regardless of server format.
+    final rawPlayers = json['players'];
+    final List<Map<String, dynamic>> playerEntries = [];
+    Map<String, dynamic>? playersMap;
 
-            if (symbol == 'X') {
-              player1Id = userId;
-              player1Username = username;
-            } else if (symbol == 'O') {
-              player2Id = userId;
-              player2Username = username;
-            }
-          }
+    if (rawPlayers is Map<String, dynamic>) {
+      playersMap = rawPlayers;
+      for (final v in rawPlayers.values) {
+        if (v is Map<String, dynamic>) playerEntries.add(v);
+      }
+    } else if (rawPlayers is List<dynamic>) {
+      // Convert list to a map keyed by user_id so the rest of the app
+      // can look players up uniformly.
+      playersMap = {};
+      for (final v in rawPlayers) {
+        if (v is Map<String, dynamic>) {
+          playerEntries.add(v);
+          final uid = v['user_id'] as String?;
+          if (uid != null) playersMap[uid] = v;
         }
-      } else if (json['players'] is List<dynamic>) {
-        // Players as list
-        final players = json['players'] as List<dynamic>;
-        for (final playerData in players) {
-          if (playerData is Map<String, dynamic>) {
-            final symbol = playerData['symbol'] as String?;
-            final userId = playerData['user_id'] as String?;
-            final username = playerData['username'] as String?;
+      }
+    }
 
-            if (symbol == 'X') {
-              player1Id = userId;
-              player1Username = username;
-            } else if (symbol == 'O') {
-              player2Id = userId;
-              player2Username = username;
-            }
-          }
-        }
+    for (final entry in playerEntries) {
+      final symbol = entry['symbol'] as String?;
+      final userId = entry['user_id'] as String?;
+      final username = entry['username'] as String?;
+
+      if (symbol == 'X') {
+        player1Id = userId;
+        player1Username = username;
+      } else if (symbol == 'O') {
+        player2Id = userId;
+        player2Username = username;
       }
     }
 
@@ -113,7 +122,7 @@ class GameStateModel extends Equatable {
       player1Username: player1Username,
       player2Username: player2Username,
       moveCount: json['move_count'] ?? 0,
-      players: json['players'] as Map<String, dynamic>?,
+      players: playersMap,
       mode: json['mode'] ?? 'classic',
       turnStartTime: json['turn_start_time'] ?? 0,
       turnTimeoutSecs: json['turn_timeout_secs'] ?? 0,
