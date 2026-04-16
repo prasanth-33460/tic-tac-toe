@@ -1,72 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/game/game_bloc.dart';
-import '../bloc/game/game_event.dart';
+import '../config/app_theme.dart';
 
-/// Result Screen - Game over, show winner
-/// Thought: "Victory/defeat screen with stats and play again option"
 class ResultScreen extends StatelessWidget {
   final String? winnerId;
   final bool isDraw;
   final bool didIWin;
 
   const ResultScreen({
-    Key? key,
+    super.key,
     this.winnerId,
     required this.isDraw,
     required this.didIWin,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    final resultColor = _getResultColor();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1419),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSizes.pagePadding),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Result symbol (X or winner symbol)
                 Text(
                   isDraw ? '=' : (didIWin ? '✓' : 'X'),
                   style: TextStyle(
                     fontSize: 100,
                     fontWeight: FontWeight.bold,
-                    color: _getResultColor(),
+                    color: resultColor,
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Result text
                 Text(
                   _getResultText(),
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
-                    color: _getResultColor(),
+                    color: resultColor,
                   ),
                 ),
                 const SizedBox(height: 10),
 
-                // Points earned
                 Text(
                   _getPointsText(),
-                  style: const TextStyle(fontSize: 20, color: Colors.white),
+                  style: const TextStyle(fontSize: 20, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 60),
 
-                // Stats container (matches sample)
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppSizes.pagePadding),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1F27),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF00D4FF),
-                      width: 2,
-                    ),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                    border: Border.all(color: AppColors.primary, width: AppSizes.borderWidth),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -81,49 +74,21 @@ class ResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 60),
 
-                // Play Again button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => _playAgain(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00D4FF),
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Play Again',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Back to Menu button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () => _backToMenu(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A1F27),
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
                       ),
                     ),
                     child: const Text(
                       'Back to Menu',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -136,8 +101,8 @@ class ResultScreen extends StatelessWidget {
   }
 
   Color _getResultColor() {
-    if (isDraw) return Colors.grey;
-    return didIWin ? const Color(0xFF00D4FF) : Colors.red;
+    if (isDraw) return AppColors.textMuted;
+    return didIWin ? AppColors.primary : AppColors.danger;
   }
 
   String _getResultText() {
@@ -150,15 +115,10 @@ class ResultScreen extends StatelessWidget {
     return didIWin ? '+200 pts' : '+0 pts';
   }
 
-  void _playAgain(BuildContext context) {
-    // Leave match and go back to menu for new match
-    context.read<GameBloc>().add(const LeaveMatchEvent());
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
   void _backToMenu(BuildContext context) {
-    context.read<GameBloc>().add(const LeaveMatchEvent());
+    final bloc = context.read<GameBloc>();
     Navigator.of(context).popUntil((route) => route.isFirst);
+    Future.microtask(() => bloc.close());
   }
 }
 
@@ -172,14 +132,14 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+        Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textMuted)),
         const SizedBox(height: 8),
         Text(
           value,
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.textPrimary,
           ),
         ),
       ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/game/game_bloc.dart';
 import '../bloc/game/game_event.dart';
+import '../config/app_theme.dart';
 import '../services/nakama_service.dart';
 import 'matchmaking_screen.dart';
 import 'leaderboard_screen.dart';
@@ -10,30 +11,25 @@ class MenuScreen extends StatelessWidget {
   final String username;
   final String userId;
 
-  const MenuScreen({Key? key, required this.username, required this.userId})
-    : super(key: key);
+  const MenuScreen({super.key, required this.username, required this.userId});
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🏠 MenuScreen building for user: $username ($userId)');
-    // ✅ FIXED: Don't create GameBloc here, create it per match
-    return MenuContent(username: username, userId: userId);
+    return _MenuContent(username: username, userId: userId);
   }
 }
 
-/// Separate widget
-class MenuContent extends StatefulWidget {
+class _MenuContent extends StatefulWidget {
   final String username;
   final String userId;
 
-  const MenuContent({Key? key, required this.username, required this.userId})
-    : super(key: key);
+  const _MenuContent({required this.username, required this.userId});
 
   @override
-  State<MenuContent> createState() => _MenuContentState();
+  State<_MenuContent> createState() => _MenuContentState();
 }
 
-class _MenuContentState extends State<MenuContent> {
+class _MenuContentState extends State<_MenuContent> {
   final TextEditingController _matchIdController = TextEditingController();
 
   @override
@@ -44,52 +40,47 @@ class _MenuContentState extends State<MenuContent> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('📱 MenuContent building UI');
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1419),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSizes.pagePadding),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Welcome message
                   Text(
                     'Welcome, ${widget.username}!',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 40),
 
-                  // Tic Tac Toe title
                   const Text(
                     'TIC TAC TOE',
                     style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF00D4FF),
+                      color: AppColors.primary,
                       letterSpacing: 4,
                     ),
                   ),
                   const SizedBox(height: 60),
 
-                  // Game Mode Section Header
                   const Text(
                     'Create New Match',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Classic Mode Button
                   _MenuButton(
                     text: 'Classic Mode',
                     subtitle: 'Create match & share ID',
@@ -98,7 +89,6 @@ class _MenuContentState extends State<MenuContent> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Timed Mode Button
                   _MenuButton(
                     text: 'Timed Mode',
                     subtitle: 'Create match & share ID',
@@ -108,52 +98,48 @@ class _MenuContentState extends State<MenuContent> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Divider
                   Container(height: 1, color: Colors.grey[700]),
                   const SizedBox(height: 24),
 
-                  // Join Match Section
                   const Text(
                     'Join Existing Match',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Match ID Text Field
                   TextField(
                     controller: _matchIdController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Enter Match ID',
-                      hintStyle: TextStyle(color: Colors.white70),
+                      hintStyle: const TextStyle(color: AppColors.textSecondary),
                       filled: true,
-                      fillColor: Color(0xFF1A1F27),
+                      fillColor: AppColors.surface,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(12)),
-                        borderSide: BorderSide(color: Color(0xFF00D4FF)),
+                        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                        borderSide: const BorderSide(color: AppColors.primary),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(12)),
-                        borderSide: BorderSide(color: Color(0xFF00D4FF)),
+                        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                        borderSide: const BorderSide(color: AppColors.primary),
                       ),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 16),
 
-                  // Join Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => _joinMatch(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D4FF),
+                        backgroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(AppSizes.borderRadius),
                         ),
                       ),
                       child: const Text(
@@ -168,7 +154,6 @@ class _MenuContentState extends State<MenuContent> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Leaderboard Button
                   _MenuButton(
                     text: 'Leaderboard',
                     subtitle: 'Top players',
@@ -186,26 +171,17 @@ class _MenuContentState extends State<MenuContent> {
     );
   }
 
-  /// ✅ FIXED: Create fresh GameBloc for each match
   void _createMatch(BuildContext context, String mode) {
-    debugPrint('🎯 Creating match with mode: $mode for user: ${widget.userId}');
-
     final nakamaService = context.read<NakamaService>();
     final actualUserId = nakamaService.userId ?? widget.userId;
 
-    // Create BRAND NEW GameBloc
     final gameBloc = GameBloc(
       nakamaService: nakamaService,
       userId: actualUserId,
       mode: mode,
     );
-    debugPrint('🎮 GameBloc created successfully');
-
-    // Dispatch create event
     gameBloc.add(CreateMatchEvent(mode));
-    debugPrint('📤 CreateMatchEvent dispatched with mode: $mode');
 
-    // Navigate with new bloc
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
@@ -214,57 +190,88 @@ class _MenuContentState extends State<MenuContent> {
         ),
       ),
     );
-    debugPrint('🧭 Navigated to MatchmakingScreen with mode: $mode');
   }
 
-  void _joinMatch(BuildContext context) {
+  Future<void> _joinMatch(BuildContext context) async {
     final matchId = _matchIdController.text.trim();
     if (matchId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a Match ID')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a Match ID')),
+      );
       return;
     }
-    debugPrint('🎯 Joining match: $matchId');
 
     final nakamaService = context.read<NakamaService>();
-    final actualUserId = nakamaService.userId ?? widget.userId;
 
-    // Create BRAND NEW GameBloc
+    // Validate the match exists before navigating.
+    // Resolve short code to full ID if needed.
+    String resolvedId = matchId;
+    final isShortCode = RegExp(r'^\d{6}$').hasMatch(matchId);
+
+    // Show a quick loading indicator.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Checking match...'),
+        duration: Duration(seconds: 1),
+        backgroundColor: AppColors.surface,
+      ),
+    );
+
+    if (isShortCode) {
+      final resolved = await nakamaService.getMatchIdByCode(matchId);
+      if (resolved == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('Invalid match code'),
+            backgroundColor: AppColors.danger,
+          ));
+        return;
+      }
+      resolvedId = resolved;
+    } else {
+      final exists = await nakamaService.matchExists(matchId);
+      if (!exists) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('Match not found'),
+            backgroundColor: AppColors.danger,
+          ));
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
+
+    // Match is valid — create bloc and navigate.
+    final actualUserId = nakamaService.userId ?? widget.userId;
     final gameBloc = GameBloc(
       nakamaService: nakamaService,
       userId: actualUserId,
-      mode: 'join', // Will be determined from match data
+      mode: 'join',
     );
-    debugPrint('🎮 GameBloc created successfully');
+    gameBloc.add(JoinMatchEvent(resolvedId));
 
-    // Dispatch join event
-    gameBloc.add(JoinMatchEvent(matchId));
-    debugPrint('📤 JoinMatchEvent dispatched');
-
-    // Navigate with new bloc
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: gameBloc,
-          child: MatchmakingScreen(mode: 'join'),
+          child: const MatchmakingScreen(mode: 'join'),
         ),
       ),
     );
-    debugPrint('🧭 Navigated to MatchmakingScreen for join');
   }
 
-  /// Show leaderboard screen
   void _showLeaderboard(BuildContext context) {
-    debugPrint('📊 Navigating to LeaderboardScreen');
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const LeaderboardScreen()));
-    debugPrint('✅ LeaderboardScreen navigation completed');
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+    );
   }
 }
 
-/// Custom menu button widget with subtitle
 class _MenuButton extends StatelessWidget {
   final String text;
   final String? subtitle;
@@ -286,24 +293,21 @@ class _MenuButton extends StatelessWidget {
       width: double.infinity,
       height: 70,
       child: Material(
-        color: isPrimary ? const Color(0xFF00D4FF) : const Color(0xFF1A1F27),
-        borderRadius: BorderRadius.circular(12),
+        color: isPrimary ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppSizes.borderRadius),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
-                // Icon
                 Icon(
                   icon,
-                  size: 32,
-                  color: isPrimary ? Colors.black : const Color(0xFF00D4FF),
+                  size: AppSizes.iconSize,
+                  color: isPrimary ? Colors.black : AppColors.primary,
                 ),
                 const SizedBox(width: 16),
-
-                // Text and Subtitle
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +318,7 @@ class _MenuButton extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: isPrimary ? Colors.black : Colors.white,
+                          color: isPrimary ? Colors.black : AppColors.textPrimary,
                         ),
                       ),
                       if (subtitle != null)
@@ -322,16 +326,12 @@ class _MenuButton extends StatelessWidget {
                           subtitle!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isPrimary
-                                ? Colors.black54
-                                : Colors.grey[400],
+                            color: isPrimary ? Colors.black54 : Colors.grey[400],
                           ),
                         ),
                     ],
                   ),
                 ),
-
-                // Arrow icon
                 Icon(
                   Icons.arrow_forward,
                   size: 24,

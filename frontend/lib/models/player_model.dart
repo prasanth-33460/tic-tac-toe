@@ -26,6 +26,7 @@ class PlayerModel extends Equatable {
       symbol: json['symbol'] ?? '',
       wins: json['wins'] ?? 0,
       losses: json['losses'] ?? 0,
+      draws: json['draws'] ?? 0,
       isConnected: json['is_connected'] ?? true,
     );
   }

@@ -5,24 +5,24 @@ import (
 	"fmt"
 )
 
-// JsonMarshal is a helper function to marshal data to JSON with error handling
-func JsonMarshal(v interface{}) ([]byte, error) {
+// JsonMarshal serialises v to JSON.
+func JsonMarshal(v any) ([]byte, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %v", err)
+		return nil, fmt.Errorf("json marshal: %w", err)
 	}
 	return data, nil
 }
 
-// JsonUnmarshal is a helper function to unmarshal JSON data with error handling
-func JsonUnmarshal(data []byte, v interface{}) error {
+// JsonUnmarshal deserialises JSON into v.
+func JsonUnmarshal(data []byte, v any) error {
 	if err := json.Unmarshal(data, v); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %v", err)
+		return fmt.Errorf("json unmarshal: %w", err)
 	}
 	return nil
 }
 
-// ContainsString checks if a string is present in a slice of strings
+// ContainsString reports whether slice contains str.
 func ContainsString(slice []string, str string) bool {
 	for _, s := range slice {
 		if s == str {
@@ -32,7 +32,7 @@ func ContainsString(slice []string, str string) bool {
 	return false
 }
 
-// FilterStrings returns a new slice containing only strings that pass the filter function
+// FilterStrings returns a new slice containing only strings that pass the filter function.
 func FilterStrings(slice []string, filter func(string) bool) []string {
 	filtered := make([]string, 0, len(slice))
 	for _, s := range slice {
@@ -40,10 +40,10 @@ func FilterStrings(slice []string, filter func(string) bool) []string {
 			filtered = append(filtered, s)
 		}
 	}
-	return nil
+	return filtered
 }
 
-// Abs returns the absolute value of an integer
+// Abs returns the absolute value of x.
 func Abs(x int) int {
 	if x < 0 {
 		return -x
@@ -51,7 +51,7 @@ func Abs(x int) int {
 	return x
 }
 
-// ValidateString checks if a string is within the allowed length
+// ValidateString checks whether s is within the allowed length range.
 func ValidateString(s string, minLen, maxLen int) error {
 	if len(s) < minLen || len(s) > maxLen {
 		return fmt.Errorf("string length must be between %d and %d characters", minLen, maxLen)

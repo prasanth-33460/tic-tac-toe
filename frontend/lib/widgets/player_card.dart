@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 
-/// Player Card Widget - Shows player info
-/// Thought: "Display player symbol, name, and active indicator"
 class PlayerCard extends StatelessWidget {
   final String symbol;
   final bool isActive;
@@ -18,28 +17,29 @@ class PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final symbolColor = symbol == 'X' ? AppColors.primary : AppColors.danger;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: AppSizes.cardPadding),
       decoration: BoxDecoration(
         color: isActive
-            ? const Color(0xFF00D4FF).withOpacity(0.2)
-            : const Color(0xFF1A1F27),
-        borderRadius: BorderRadius.circular(12),
+            ? AppColors.primary.withValues(alpha: 0.2)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
         border: Border.all(
-          color: isActive ? const Color(0xFF00D4FF) : Colors.transparent,
-          width: 2,
+          color: isActive ? AppColors.primary : Colors.transparent,
+          width: AppSizes.borderWidth,
         ),
       ),
       child: Row(
         children: [
-          // Symbol
           Container(
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: _getSymbolColor().withOpacity(0.2),
+              color: symbolColor.withValues(alpha: 0.2),
               shape: BoxShape.circle,
-              border: Border.all(color: _getSymbolColor(), width: 2),
+              border: Border.all(color: symbolColor, width: AppSizes.borderWidth),
             ),
             child: Center(
               child: Text(
@@ -47,14 +47,13 @@ class PlayerCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: _getSymbolColor(),
+                  color: symbolColor,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 16),
 
-          // Username
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,29 +63,28 @@ class PlayerCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 if (isActive)
-                  const Text(
-                    'Your turn',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF00D4FF)),
+                  Text(
+                    isMe ? 'Your turn' : 'Their turn',
+                    style: const TextStyle(fontSize: 12, color: AppColors.primary),
                   ),
               ],
             ),
           ),
 
-          // Active indicator
           if (isActive)
             Container(
               width: 12,
               height: 12,
               decoration: BoxDecoration(
-                color: const Color(0xFF00D4FF),
+                color: AppColors.primary,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF00D4FF).withOpacity(0.5),
+                    color: AppColors.primary.withValues(alpha: 0.5),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -96,9 +94,5 @@ class PlayerCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _getSymbolColor() {
-    return symbol == 'X' ? const Color(0xFF00D4FF) : Colors.red;
   }
 }

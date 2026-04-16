@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/nakama_service.dart';
 import 'leaderboard_event.dart';
@@ -25,6 +26,7 @@ class LeaderboardBloc extends Bloc<LeaderboardEvent, LeaderboardState> {
 
       emit(LeaderboardLoaded(players));
     } catch (e) {
+      debugPrint('Leaderboard fetch failed: $e');
       emit(LeaderboardError(e.toString()));
     }
   }

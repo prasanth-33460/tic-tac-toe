@@ -6,13 +6,14 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// Match represents the main match instance that implements runtime.Match interface
+// Match implements the runtime.Match interface for tic-tac-toe.
 type Match struct {
 	service *GameService
 }
 
-// MatchState represents the complete state of a tic-tac-toe match
+// MatchState holds the full state of a single tic-tac-toe game.
 type MatchState struct {
+	MatchID         string                 `json:"match_id"`
 	Board           [BoardSize]string      `json:"board"`
 	Players         map[string]*PlayerData `json:"players"`
 	CurrentTurnID   string                 `json:"current_turn_id"`
@@ -20,6 +21,7 @@ type MatchState struct {
 	GameOver        bool                   `json:"game_over"`
 	IsDraw          bool                   `json:"is_draw"`
 	Mode            string                 `json:"mode"`
+	StartTime       int64                  `json:"start_time"`
 	TurnStartTime   int64                  `json:"turn_start_time"`
 	TurnTimeoutSecs int                    `json:"turn_timeout_secs"`
 	MoveCount       int                    `json:"move_count"`
@@ -27,7 +29,7 @@ type MatchState struct {
 	Preferences     map[string]string      `json:"preferences"`
 }
 
-// PlayerData contains information about each player in the match
+// PlayerData tracks per-player info within a match.
 type PlayerData struct {
 	UserID      string `json:"user_id"`
 	Username    string `json:"username"`
@@ -35,15 +37,16 @@ type PlayerData struct {
 	IsConnected bool   `json:"is_connected"`
 	Wins        int    `json:"wins"`
 	Losses      int    `json:"losses"`
+	Draws       int    `json:"draws"`
 	Streak      int    `json:"streak"`
 }
 
-// MoveMessage represents a player's move attempt
+// MoveMessage is the payload sent by a client when making a move.
 type MoveMessage struct {
 	Position int `json:"position"`
 }
 
-// GameService handles the game business logic and operations
+// GameService contains shared dependencies used by match logic.
 type GameService struct {
 	logger     runtime.Logger
 	db         *sql.DB
@@ -51,26 +54,10 @@ type GameService struct {
 	dispatcher runtime.MatchDispatcher
 }
 
-// ValidationResult represents the result of a validation check
+// ValidationResult is the outcome of a pre-join or pre-move check.
 type ValidationResult struct {
 	Valid   bool   `json:"valid"`
 	Message string `json:"message,omitempty"`
 }
 
-// OpCode represents different types of operations in the game
-type OpCode int64
 
-// MatchResult represents the outcome of a completed match
-type MatchResult struct {
-	Winner    string        `json:"winner"`
-	IsDraw    bool          `json:"is_draw"`
-	GameState *MatchState   `json:"game_state"`
-	Players   []*PlayerData `json:"players"`
-}
-
-// MatchParams represents initialization parameters for a match
-type MatchParams struct {
-	Mode       string                 `json:"mode"`
-	Metadata   map[string]interface{} `json:"metadata"`
-	SkillLevel int                    `json:"skill_level"`
-}

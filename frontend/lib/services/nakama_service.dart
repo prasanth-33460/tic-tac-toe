@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:nakama/nakama.dart';
 import '../config/app_config.dart';
 import '../models/match_model.dart';
@@ -11,14 +12,22 @@ class NakamaService {
   String? _currentMatchId;
   String? get currentMatchId => _currentMatchId;
 
-  // Get the authenticated user's Nakama user ID
   String? get userId => _session?.userId;
 
-  final StreamController<Map<String, dynamic>> _matchStateController =
+  StreamController<Map<String, dynamic>> _matchStateController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  StreamController<Map<String, dynamic>> _chatController =
       StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get matchStateStream =>
       _matchStateController.stream;
+
+  Stream<Map<String, dynamic>> get chatStream => _chatController.stream;
+
+  // Track socket subscriptions so we can cancel them on reconnect.
+  StreamSubscription? _matchDataSub;
+  StreamSubscription? _matchPresenceSub;
 
   NakamaService() {
     _initializeClient();
@@ -44,12 +53,10 @@ class NakamaService {
         username: displayName ?? deviceId,
       );
 
-      print(
-        '✅ Authenticated: ${_session?.userId} with display name: ${displayName ?? deviceId}',
-      );
+      debugPrint('Authenticated: ${_session?.userId} as ${displayName ?? deviceId}');
       return _session != null;
     } catch (e) {
-      print('❌ Auth failed: $e');
+      debugPrint('Auth failed: $e');
       return false;
     }
   }
@@ -59,7 +66,22 @@ class NakamaService {
       throw Exception('Must authenticate first');
     }
 
+    // If the stream controller was previously closed (e.g. after logout),
+    // create a fresh one so listeners can resubscribe.
+    if (_matchStateController.isClosed) {
+      _matchStateController =
+          StreamController<Map<String, dynamic>>.broadcast();
+    }
+    if (_chatController.isClosed) {
+      _chatController =
+          StreamController<Map<String, dynamic>>.broadcast();
+    }
+
     try {
+      // Cancel any previous listeners to avoid duplicates on re-login.
+      await _matchDataSub?.cancel();
+      await _matchPresenceSub?.cancel();
+
       NakamaWebsocketClient.init(
         host: AppConfig.nakamaHost,
         ssl: AppConfig.useSsl,
@@ -68,23 +90,22 @@ class NakamaService {
 
       final socket = NakamaWebsocketClient.instance;
 
-      socket.onMatchData.listen((event) {
+      _matchDataSub = socket.onMatchData.listen((event) {
         _handleMatchData(event);
       });
 
-      socket.onMatchPresence.listen((event) {
-        print(
+      _matchPresenceSub = socket.onMatchPresence.listen((event) {
+        debugPrint(
           'Match presence: ${event.joins.length} joined, ${event.leaves.length} left',
         );
       });
 
-      // ✅ WAIT FOR BACKEND TO BE FULLY READY
-      print('⏳ Waiting for backend to initialize...');
+      // Give the backend a moment to fully initialize the connection.
       await Future.delayed(const Duration(seconds: 2));
 
-      print('✅ Socket connected');
+      debugPrint('Socket connected');
     } catch (e) {
-      print('❌ Socket connection failed: $e');
+      debugPrint('Socket connection failed: $e');
       rethrow;
     }
   }
@@ -94,119 +115,59 @@ class NakamaService {
       final dataBytes = data.data ?? [];
       if (dataBytes.isEmpty) return;
 
-      final stateJson = json.decode(utf8.decode(dataBytes));
-      _matchStateController.add(stateJson);
+      final decoded = json.decode(utf8.decode(dataBytes));
+      final opCode = data.opCode;
+
+      if (opCode == AppConfig.opCodeState || opCode == AppConfig.opCodeGameEnd) {
+        if (!_matchStateController.isClosed) {
+          _matchStateController.add(decoded);
+        }
+      } else if (opCode == AppConfig.opCodeChat) {
+        if (!_chatController.isClosed) {
+          _chatController.add(decoded);
+        }
+      }
     } catch (e) {
-      print('Error parsing match data: $e');
+      debugPrint('Error parsing match data: $e');
     }
+  }
+
+  // Match creation / lookup
+
+  Future<MatchModel?> findMatch({String mode = 'classic'}) async {
+    if (_session == null) return null;
+
+    return _retryRpc<MatchModel>(
+      label: 'findMatch',
+      rpcCall: () => NakamaWebsocketClient.instance.rpc(
+        id: 'find_match',
+        payload: json.encode({'mode': mode}),
+      ),
+      parsePayload: (payload) {
+        final data = json.decode(payload);
+        final model = MatchModel.fromJson(data);
+        _currentMatchId = model.matchId;
+        return model;
+      },
+    );
   }
 
   Future<MatchModel?> createQuickMatch() async {
     if (_session == null) return null;
 
-    // ✅ RETRY LOGIC: Try up to 3 times with exponential backoff
-    for (int attempt = 1; attempt <= 3; attempt++) {
-      try {
-        print('🔄 Attempt $attempt to create match...');
-
-        final result = await NakamaWebsocketClient.instance.rpc(
-          id: 'create_quick_match',
-          payload: '',
-        );
-
-        final payload = result.payload;
-        if (payload.isEmpty) {
-          print('⚠️ Attempt $attempt: Empty payload, retrying...');
-
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-
-        try {
-          final responseData = json.decode(payload);
-          print('✅ Match created on attempt $attempt: $responseData');
-
-          final matchModel = MatchModel.fromJson(responseData);
-          _currentMatchId = matchModel.matchId;
-
-          return matchModel;
-        } catch (parseError) {
-          print('❌ Parse error on attempt $attempt: $parseError');
-          print('Response was: $payload');
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-      } catch (e) {
-        print('❌ RPC error on attempt $attempt: $e');
-
-        if (attempt == 3) {
-          print('❌ All 3 attempts failed');
-          return null;
-        }
-
-        await Future.delayed(Duration(seconds: attempt));
-      }
-    }
-
-    return null;
-  }
-
-  Future<MatchModel?> findMatch({String mode = 'classic'}) async {
-    if (_session == null) return null;
-
-    // ✅ RETRY LOGIC: Try up to 3 times with exponential backoff
-    for (int attempt = 1; attempt <= 3; attempt++) {
-      try {
-        print('🔄 Attempt $attempt to find match with mode: $mode...');
-
-        final result = await NakamaWebsocketClient.instance.rpc(
-          id: 'find_match',
-          payload: json.encode({'mode': mode}),
-        );
-
-        final payload = result.payload;
-        if (payload.isEmpty) {
-          print('⚠️ Attempt $attempt: Empty payload, retrying...');
-
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-
-        try {
-          final responseData = json.decode(payload);
-          print('✅ Match found on attempt $attempt: $responseData');
-
-          final matchModel = MatchModel.fromJson(responseData);
-          _currentMatchId = matchModel.matchId;
-
-          return matchModel;
-        } catch (parseError) {
-          print('❌ Parse error on attempt $attempt: $parseError');
-          print('Response was: $payload');
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-      } catch (e) {
-        print('❌ RPC error on attempt $attempt: $e');
-
-        if (attempt == 3) {
-          print('❌ All 3 attempts failed');
-          return null;
-        }
-
-        await Future.delayed(Duration(seconds: attempt));
-      }
-    }
-
-    return null;
+    return _retryRpc<MatchModel>(
+      label: 'createQuickMatch',
+      rpcCall: () => NakamaWebsocketClient.instance.rpc(
+        id: 'create_quick_match',
+        payload: '',
+      ),
+      parsePayload: (payload) {
+        final data = json.decode(payload);
+        final model = MatchModel.fromJson(data);
+        _currentMatchId = model.matchId;
+        return model;
+      },
+    );
   }
 
   Future<String?> getMatchIdByCode(String code) async {
@@ -219,15 +180,12 @@ class NakamaService {
       );
 
       final payload = result.payload;
-      if (payload.isEmpty) {
-        print('⚠️ Empty payload from get_match_by_code');
-        return null;
-      }
+      if (payload.isEmpty) return null;
 
-      final responseData = json.decode(payload);
-      return responseData['matchId'];
+      final data = json.decode(payload);
+      return data['matchId'];
     } catch (e) {
-      print('❌ Error getting match ID by code: $e');
+      debugPrint('Error getting match by code: $e');
       return null;
     }
   }
@@ -236,26 +194,27 @@ class NakamaService {
     if (_session == null) return false;
 
     try {
-      // Try to get match info - if it fails, match doesn't exist
       await NakamaWebsocketClient.instance.rpc(
         id: 'get_match_info',
         payload: json.encode({'matchId': matchId}),
       );
       return true;
     } catch (e) {
-      print('❌ Match does not exist: $matchId');
+      debugPrint('Match does not exist: $matchId');
       return false;
     }
   }
+
+  // In-match operations
 
   Future<void> joinMatch(String matchId) async {
     try {
       final socket = NakamaWebsocketClient.instance;
       await socket.joinMatch(matchId);
       _currentMatchId = matchId;
-      print('✅ Joined match: $matchId');
+      debugPrint('Joined match: $matchId');
     } catch (e) {
-      print('❌ Join match failed: $e');
+      debugPrint('Join match failed: $e');
       rethrow;
     }
   }
@@ -268,95 +227,115 @@ class NakamaService {
     try {
       final moveData = json.encode({'position': position});
 
-      final socket = NakamaWebsocketClient.instance;
-      socket.sendMatchData(
+      NakamaWebsocketClient.instance.sendMatchData(
         matchId: _currentMatchId!,
         opCode: AppConfig.opCodeMove,
         data: utf8.encode(moveData),
       );
-
-      print('✅ Sent move: position $position');
     } catch (e) {
-      print('❌ Send move failed: $e');
+      debugPrint('Send move failed: $e');
       rethrow;
     }
   }
 
-  Future<Map<String, dynamic>> getLeaderboard() async {
-    if (_session == null) return {};
+  void sendChatMessage(String message) {
+    if (_currentMatchId == null) return;
 
-    // ✅ RETRY LOGIC: Try up to 3 times with exponential backoff
-    for (int attempt = 1; attempt <= 3; attempt++) {
-      try {
-        print('🔄 Attempt $attempt to fetch leaderboard...');
+    final chatData = json.encode({'message': message});
 
-        final result = await NakamaWebsocketClient.instance.rpc(
-          id: 'get_leaderboard',
-          payload: '',
-        );
-
-        final payload = result.payload;
-        if (payload.isEmpty) {
-          print('⚠️ Attempt $attempt: Empty payload, retrying...');
-
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-
-        try {
-          final data = json.decode(payload);
-          print('✅ Leaderboard fetched on attempt $attempt');
-          return data;
-        } catch (parseError) {
-          print('❌ Parse error on attempt $attempt: $parseError');
-          print('Response was: $payload');
-          if (attempt < 3) {
-            await Future.delayed(Duration(seconds: attempt));
-          }
-          continue;
-        }
-      } catch (e) {
-        print('❌ RPC error on attempt $attempt: $e');
-
-        if (attempt == 3) {
-          print('❌ All 3 attempts failed');
-          return {};
-        }
-
-        await Future.delayed(Duration(seconds: attempt));
-      }
-    }
-
-    return {};
+    NakamaWebsocketClient.instance.sendMatchData(
+      matchId: _currentMatchId!,
+      opCode: AppConfig.opCodeChat,
+      data: utf8.encode(chatData),
+    );
   }
 
   Future<void> leaveMatch() async {
-    if (_currentMatchId != null) {
-      try {
-        final socket = NakamaWebsocketClient.instance;
-        await socket.leaveMatch(_currentMatchId!);
-        _currentMatchId = null;
-        print('✅ Left match');
-      } catch (e) {
-        print('❌ Leave match failed: $e');
-      }
+    if (_currentMatchId == null) return;
+
+    try {
+      final socket = NakamaWebsocketClient.instance;
+      await socket.leaveMatch(_currentMatchId!);
+      debugPrint('Left match: $_currentMatchId');
+      _currentMatchId = null;
+    } catch (e) {
+      debugPrint('Leave match failed: $e');
+      _currentMatchId = null;
     }
   }
 
+  // Leaderboard
+
+  Future<Map<String, dynamic>> getLeaderboard() async {
+    if (_session == null) return {};
+
+    final result = await _retryRpc<Map<String, dynamic>>(
+      label: 'getLeaderboard',
+      rpcCall: () => NakamaWebsocketClient.instance.rpc(
+        id: 'get_leaderboard',
+        payload: '',
+      ),
+      parsePayload: (payload) => json.decode(payload),
+    );
+
+    return result ?? {};
+  }
+
+  // Lifecycle
+
   Future<void> disconnect() async {
+    await _matchDataSub?.cancel();
+    await _matchPresenceSub?.cancel();
+    _matchDataSub = null;
+    _matchPresenceSub = null;
+
     try {
       NakamaWebsocketClient.instance.close();
     } catch (e) {
-      print('Error closing socket: $e');
+      debugPrint('Error closing socket: $e');
     }
-    await _matchStateController.close();
     _session = null;
-    print('✅ Disconnected');
+    _currentMatchId = null;
+    debugPrint('Disconnected');
   }
 
   void dispose() {
+    _matchDataSub?.cancel();
+    _matchPresenceSub?.cancel();
     _matchStateController.close();
+    _chatController.close();
+  }
+
+  // Helpers
+
+  /// Retries an RPC call up to [maxAttempts] times with linear backoff.
+  Future<T?> _retryRpc<T>({
+    required String label,
+    required Future<Rpc> Function() rpcCall,
+    required T Function(String payload) parsePayload,
+    int maxAttempts = 3,
+  }) async {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final result = await rpcCall();
+        final payload = result.payload;
+
+        if (payload.isEmpty) {
+          debugPrint('$label attempt $attempt: empty payload');
+          if (attempt < maxAttempts) {
+            await Future.delayed(Duration(seconds: attempt));
+          }
+          continue;
+        }
+
+        return parsePayload(payload);
+      } catch (e) {
+        debugPrint('$label attempt $attempt failed: $e');
+
+        if (attempt == maxAttempts) return null;
+        await Future.delayed(Duration(seconds: attempt));
+      }
+    }
+    return null;
   }
 }

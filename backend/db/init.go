@@ -3,80 +3,79 @@ package db
 import (
 	"context"
 	"database/sql"
+	"embed"
+	"fmt"
+	"sort"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+// InitializeDatabase runs all SQL migration files in order and creates therequired Nakama leaderboards.
 func InitializeDatabase(ctx context.Context, logger runtime.Logger, database *sql.DB, nk runtime.NakamaModule) error {
-	logger.Info("Initializing custom database schema...")
+	logger.Info("Running database migrations...")
 
-	query := `
-    CREATE TABLE IF NOT EXISTS player_status (
-        user_id VARCHAR(255) PRIMARY KEY,
-        is_banned BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS player_stats (
-        user_id VARCHAR(255) PRIMARY KEY,
-        total_wins INT DEFAULT 0,
-        total_losses INT DEFAULT 0,
-        total_draws INT DEFAULT 0,
-        skill_rating INT DEFAULT 1000,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS match_history (
-        match_id VARCHAR(255) PRIMARY KEY,
-        winner_id VARCHAR(255),
-        loser_id VARCHAR(255),
-        mode VARCHAR(20),
-        duration_seconds INT,
-        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS match_chat (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(255),
-        username VARCHAR(255),
-        message TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    `
-
-	_, err := database.ExecContext(ctx, query)
-	if err != nil {
-		logger.Error("Failed to initialize database: %v", err)
-		return err
+	if err := runMigrations(ctx, logger, database); err != nil {
+		return fmt.Errorf("migrations failed: %w", err)
 	}
 
-	// Initialize leaderboards
 	if err := EnsureLeaderboards(logger, nk); err != nil {
-		logger.Error("Failed to initialize leaderboards: %v", err)
-		return err
+		return fmt.Errorf("leaderboard setup failed: %w", err)
 	}
 
-	logger.Info("Database schema initialized successfully!")
+	logger.Info("Database initialization complete")
+	return nil
+}
+
+// runMigrations reads every .sql file under db/migrations/ (sorted by name)
+// and executes them sequentially. Each file uses IF NOT EXISTS so they are
+// safe to re-run.
+func runMigrations(ctx context.Context, logger runtime.Logger, db *sql.DB) error {
+	entries, err := migrationFS.ReadDir("migrations")
+	if err != nil {
+		return fmt.Errorf("reading migrations dir: %w", err)
+	}
+
+	// Sort by filename to guarantee execution order.
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		path := "migrations/" + entry.Name()
+		content, err := migrationFS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		logger.Info("Applying migration: %s", entry.Name())
+		if _, err := db.ExecContext(ctx, string(content)); err != nil {
+			return fmt.Errorf("executing %s: %w", entry.Name(), err)
+		}
+	}
+
 	return nil
 }
 
 // EnsureLeaderboards creates the required leaderboards if they do not exist.
-// This can be called during initialization or on-demand if a leaderboard is missing.
+// Safe to call multiple times — Nakama ignores duplicate creates.
 func EnsureLeaderboards(logger runtime.Logger, nk runtime.NakamaModule) error {
-	logger.Info("Ensuring leaderboards exist...")
-
 	ctx := context.Background()
 
-	// Create global_wins leaderboard - authoritative so only server can write
 	if err := nk.LeaderboardCreate(ctx, "global_wins", true, "desc", "incr", "", nil); err != nil {
-		logger.Warn("Failed to create global_wins leaderboard (may already exist): %v", err)
+		logger.Warn("global_wins leaderboard create (may already exist): %v", err)
 	}
 
-	// Create win_streaks leaderboard - authoritative so only server can write
 	if err := nk.LeaderboardCreate(ctx, "win_streaks", true, "desc", "set", "", nil); err != nil {
-		logger.Warn("Failed to create win_streaks leaderboard (may already exist): %v", err)
+		logger.Warn("win_streaks leaderboard create (may already exist): %v", err)
 	}
 
-	logger.Info("Leaderboards ensured successfully!")
+	logger.Info("Leaderboards ready")
 	return nil
 }
