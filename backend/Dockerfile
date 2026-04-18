@@ -13,6 +13,7 @@ RUN go build -buildmode=plugin -trimpath -o ./modules/backend.so
 FROM registry.heroiclabs.com/heroiclabs/nakama:3.22.0
 
 COPY --from=builder /backend/modules/backend.so /nakama/data/modules/backend.so
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/bin/sh", "-ecx"]
-CMD ["DB=$(echo $DATABASE_URL | sed 's|postgresql://||' | sed 's|postgres://||' | sed 's|/\\([^/]*\\)$|:5432/\\1|'); /nakama/nakama migrate up --database.address $DB && exec /nakama/nakama --name nakama1 --database.address $DB --logger.level INFO --session.token_expiry_sec 7200"]
+ENTRYPOINT ["/entrypoint.sh"]
