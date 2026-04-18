@@ -12,26 +12,19 @@ DB=$(echo "$DATABASE_URL" \
   | sed 's|postgres://||' \
   | sed 's|\([^/]*\)/\([^?]*\).*|\1:5432/\2|')
 
-# Extract host for readiness check
-HOST=$(echo "$DB" | sed 's|.*@||' | sed 's|:.*||')
-
-echo "Waiting for PostgreSQL at $HOST:5432..."
+echo "Running migrations (will retry until DB is ready)..."
 TRIES=0
-until nc -z "$HOST" 5432 2>/dev/null; do
+until /nakama/nakama migrate up --database.address "$DB" 2>&1; do
   TRIES=$((TRIES + 1))
-  if [ "$TRIES" -ge 30 ]; then
-    echo "ERROR: database not reachable after 60s"
+  if [ "$TRIES" -ge 15 ]; then
+    echo "ERROR: migrations failed after 15 attempts"
     exit 1
   fi
-  echo "  retry $TRIES/30 ..."
-  sleep 2
+  echo "  DB not ready, retry $TRIES/15 in 5s..."
+  sleep 5
 done
-echo "PostgreSQL is up"
 
-echo "Running migrations..."
-/nakama/nakama migrate up --database.address "$DB"
-
-echo "Starting Nakama..."
+echo "Migrations done. Starting Nakama..."
 exec /nakama/nakama \
   --name nakama1 \
   --database.address "$DB" \
